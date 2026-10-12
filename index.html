@@ -221,6 +221,36 @@ header.top{gap:.65rem}
 .uppill small{color:var(--sub);font-weight:400;font-size:.78rem}
 .uppill .ic{color:var(--danger)}
 .spin.sm{width:16px;height:16px;border-width:2px;margin:0}
+
+/* 平板與電腦：版面跟著視窗變寬 */
+@media (min-width:700px){
+  .grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:4px}
+  .albums{grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem}
+}
+@media (min-width:960px){
+  body{padding-left:92px}
+  nav.bottom{top:0;bottom:0;right:auto;width:92px;flex-direction:column;justify-content:flex-start;gap:.5rem;padding:calc(1rem + env(safe-area-inset-top)) .3rem 1rem;border-top:0;border-right:1px solid var(--line)}
+  nav.bottom button{width:100%;padding:.6rem .2rem;font-size:.78rem}
+  nav.bottom button.on::before{top:20%;bottom:20%;left:-.3rem;right:auto;width:3px;height:auto;border-radius:0 3px 3px 0}
+  nav.bottom .fab{order:-1;margin:0 auto .8rem;width:3.2rem;height:3.2rem}
+  header.top{padding-inline:max(1.5rem, calc((100% - 1240px) / 2 + 1.5rem))}
+  main{max-width:1240px;padding:1.5rem 1.5rem 3rem}
+  main.narrow{max-width:780px}
+  .grid{grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:6px}
+  .tile{border-radius:8px}
+  .albums{grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
+  .bcard{max-width:640px}
+  .uppill{bottom:1.5rem;left:calc(50% + 46px)}
+  .toast{bottom:1.5rem;left:calc(50% + 46px)}
+  .lb{display:grid;grid-template-columns:minmax(0,1fr) 400px;grid-template-rows:auto minmax(0,1fr)}
+  .lb-top{grid-column:1 / -1}
+  .lb-stage{min-height:0}
+  .lb-info{max-height:none;border-top:0;border-left:1px solid var(--line);padding:1.2rem 1.3rem}
+  .lb-stage .prev{left:1rem}.lb-stage .next{right:1rem}
+}
+@media (min-width:1500px){
+  .grid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+}
 </style>
 </head>
 <body>
@@ -745,7 +775,7 @@ function render() {
     <button class="ibtn" data-act="refresh" title="重新整理" aria-label="重新整理">${ic('refresh', 22)}</button>
   </header>
   ${demoSel}
-  <main>${view()}</main>
+  <main class="${S.tab === 'me' ? 'narrow' : ''}">${view()}</main>
   <nav class="bottom">
     ${navBtn('timeline', 'calendar', '時間軸')}${navBtn('albums', 'folder', '相簿')}
     ${canUp ? `<button class="fab" data-act="upload" aria-label="上傳">${ic('plus', 28)}</button>` : ''}
