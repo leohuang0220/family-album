@@ -1159,17 +1159,32 @@ function updUpTile(p) {
 function drawUpPill() {
   let el = $('#upPill');
   const busy = UQ.running || UQ.items.length;
+  keepAwake(!!busy);
   if (!busy && !UQ.failed.length) { el?.remove(); return; }
   if (!el) { el = document.createElement('div'); el.id = 'upPill'; el.className = 'uppill'; document.body.appendChild(el); }
   if (busy) {
     const cur = S.photos.filter(p => p._local), pr = cur.length ? cur.reduce((s, p) => s + (p._prog || 0), 0) / cur.length : 0;
-    el.innerHTML = `<span class="spin sm"></span><span>上傳中 ${Math.min(UQ.done + 1, UQ.total)}/${UQ.total}${cur.length ? ` · ${Math.round(pr * 100)}%` : ''}</span><small>請先不要關掉 App</small>`;
+    el.innerHTML = `<span class="spin sm"></span><span>上傳中 ${Math.min(UQ.done + 1, UQ.total)}/${UQ.total}${cur.length ? ` · ${Math.round(pr * 100)}%` : ''}</span><small>螢幕會保持亮著，請先不要關掉 App</small>`;
     el.removeAttribute('data-act');
   } else {
     el.innerHTML = `${ic('alert', 18)}<span>${UQ.failed.length} 個上傳失敗</span><button class="btn sm" data-act="upRetry">重試</button><button class="ibtn" data-act="upDismiss" aria-label="關閉">${ic('close', 18)}</button>`;
   }
 }
 window.addEventListener('beforeunload', e => { if (UQ.running || UQ.items.length) { e.preventDefault(); e.returnValue = ''; } });
+// 上傳期間讓螢幕保持亮著（手機自動關螢幕會讓上傳中斷）
+let wakeLock = null, wlPending = false;
+async function keepAwake(on) {
+  try {
+    if (on && !wakeLock && !wlPending && 'wakeLock' in navigator && document.visibilityState === 'visible') {
+      wlPending = true;
+      try { wakeLock = await navigator.wakeLock.request('screen'); } finally { wlPending = false; }
+      if (!(UQ.running || UQ.items.length)) { const w = wakeLock; wakeLock = null; await w.release(); return; }
+      wakeLock.addEventListener('release', () => { wakeLock = null; });
+    } else if (!on && wakeLock) { const w = wakeLock; wakeLock = null; await w.release(); }
+  } catch { wakeLock = null; }
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && (UQ.running || UQ.items.length)) keepAwake(true); });
+
 
 /* ---------- 看大圖 ---------- */
 function lbList(name) {
