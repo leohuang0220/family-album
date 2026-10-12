@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>寶寶家庭相簿</title>
 <link rel="manifest" href="app.webmanifest">
-<link rel="icon" href="b-icon.svg">
-<link rel="apple-touch-icon" href="b-icon-192.png">
+<link rel="icon" href="c-favicon.png">
+<link rel="apple-touch-icon" href="c-apple-touch-icon.png">
 <meta name="theme-color" content="#F6F9FB">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -205,6 +205,22 @@ header.top{gap:.65rem}
 .tour .foot{padding:1rem 1.2rem calc(1.2rem + env(safe-area-inset-bottom));display:flex;gap:.6rem;align-items:center;justify-content:space-between;max-width:460px;width:100%;margin:0 auto}
 .tour .skip{color:var(--sub);min-width:4rem;text-align:left;padding:.5rem 0}
 .tour .dots{display:flex;gap:.4rem}.tour .dots i{width:7px;height:7px;border-radius:4px;background:var(--line)}.tour .dots i.on{background:var(--accent);width:20px}
+
+.tile{background-size:cover;background-position:center}
+.tile.up img{opacity:.85}
+.tile .upbar{position:absolute;left:6px;right:6px;bottom:6px;height:5px;border-radius:3px;background:rgba(255,255,255,.75);overflow:hidden}
+.tile .upbar i{display:block;height:100%;background:var(--accent);border-radius:3px;transition:width .3s}
+.album .cv{position:relative;aspect-ratio:4/3}
+.album .cv::before{content:"";position:absolute;inset:-12px;background:var(--ph,none) center/cover;filter:blur(14px);opacity:.9}
+.album .cv img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.album .cv.por img{object-fit:contain}
+.album .cv>.ic{position:relative}
+.lb-stage::before{content:"";position:absolute;inset:-20px;background:var(--ph,none) center/cover;filter:blur(24px);opacity:.55}
+.lb-stage img,.lb-stage video{position:absolute;inset:0;width:100%;height:100%;max-width:none;max-height:none;object-fit:contain}
+.uppill{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(5.6rem + env(safe-area-inset-bottom));z-index:30;display:flex;align-items:center;gap:.55rem;background:var(--surface);border:1px solid var(--line);box-shadow:0 6px 24px rgba(29,42,53,.14);border-radius:999px;padding:.5rem .6rem .5rem .9rem;font-weight:600;font-size:.9rem;max-width:92vw;white-space:nowrap}
+.uppill small{color:var(--sub);font-weight:400;font-size:.78rem}
+.uppill .ic{color:var(--danger)}
+.spin.sm{width:16px;height:16px;border-width:2px;margin:0}
 </style>
 </head>
 <body>
@@ -311,6 +327,11 @@ async function loadImg(file) {
   try { return await tryDecode(await heicToJpeg(file)); } catch {}
   throw new Error('這張照片的格式讀不了，請換一張或先在手機轉成 JPG');
 }
+// 極小的預覽圖（約 1KB），存在資料裡，打開 App 就能先顯示模糊版
+function tinyPh(src, w, h) {
+  try { const s = 24 / Math.max(w || 1, h || 1), c = document.createElement('canvas'); c.width = Math.max(1, Math.round((w || 24) * s)); c.height = Math.max(1, Math.round((h || 24) * s));
+    c.getContext('2d').drawImage(src, 0, 0, c.width, c.height); return c.toDataURL('image/jpeg', 0.5); } catch { return ''; }
+}
 function resize(src, w, h, max, q) {
   const s = Math.min(1, max / Math.max(w, h)); const c = document.createElement('canvas');
   c.width = Math.round(w * s); c.height = Math.round(h * s);
@@ -325,7 +346,7 @@ async function videoPoster(file) {
     v.currentTime = Math.min(1, (v.duration || 0) / 2);
     await Promise.race([new Promise(ok => v.onseeked = ok), new Promise((_, no) => setTimeout(no, 8000))]);
     const poster = await resize(v, v.videoWidth, v.videoHeight, 480, .8);
-    return { poster, w: v.videoWidth, h: v.videoHeight, duration: Math.round(v.duration || 0) };
+    return { poster, ph: tinyPh(v, v.videoWidth, v.videoHeight), w: v.videoWidth, h: v.videoHeight, duration: Math.round(v.duration || 0) };
   } catch {
     const c = document.createElement('canvas'); c.width = c.height = 480; const g = c.getContext('2d');
     g.fillStyle = '#f6d6cc'; g.fillRect(0, 0, 480, 480); g.fillStyle = '#fff'; g.font = '160px sans-serif'; g.textAlign = 'center'; g.fillText('▶', 240, 300);
@@ -335,18 +356,18 @@ async function videoPoster(file) {
 async function prepareFile(file) {
   if (file.type.startsWith('video/')) {
     if (file.size > MAX_VIDEO) throw new Error('影片超過 200MB，請先剪短');
-    const { poster, w, h, duration } = await videoPoster(file);
+    const { poster, ph, w, h, duration } = await videoPoster(file);
     const ext = (file.name.split('.').pop() || 'mp4').toLowerCase().replace(/[^a-z0-9]/g, '') || 'mp4';
     const vid = new Blob([file], { type: file.type || 'video/mp4' });
-    return { kind: 'video', origName: file.name, takenAt: file.lastModified || Date.now(), w, h, duration, parts: [['thumb', poster, 'thumb.jpg'], ['full', vid, 'video.' + ext]] };
+    return { kind: 'video', origName: file.name, takenAt: file.lastModified || Date.now(), w, h, duration, ph, parts: [['thumb', poster, 'thumb.jpg'], ['full', vid, 'video.' + ext]] };
   }
   const takenAt = (await exifDate(file)) || file.lastModified || Date.now();
   const img = await loadImg(file);
   const w = img.naturalWidth, h = img.naturalHeight;
   // 原檔以完整解析度重新存檔（移除 GPS），另做顯示用與縮圖
-  const full = await resize(img, w, h, 6000, .92), disp = await resize(img, w, h, 1600, .85), thumb = await resize(img, w, h, 360, .75);
+  const thumb = await resize(img, w, h, 360, .75), disp = await resize(img, w, h, 1600, .85), full = await resize(img, w, h, 6000, .92), ph = tinyPh(img, w, h);
   URL.revokeObjectURL(img.src);
-  return { kind: 'image', origName: file.name.replace(/\.[^.]+$/, '') + '.jpg', takenAt, w, h, parts: [['thumb', thumb, 'thumb.jpg'], ['disp', disp, 'disp.jpg'], ['full', full, 'full.jpg']] };
+  return { kind: 'image', origName: file.name.replace(/\.[^.]+$/, '') + '.jpg', takenAt, w, h, ph, parts: [['thumb', thumb, 'thumb.jpg'], ['disp', disp, 'disp.jpg'], ['full', full, 'full.jpg']] };
 }
 
 /* =====================================================================
@@ -398,25 +419,33 @@ function makeGAS(url, clientId) {
     pending.clear();
     for (const which in groups) {
       const list = groups[which];
-      for (let i = 0; i < list.length; i += 24) {
-        const part = list.slice(i, i + 24);
+      const per = which === 'disp' ? 4 : 12;   // 分小批同時送，第一批更快出現
+      for (let i = 0; i < list.length; i += per) {
+        const part = list.slice(i, i + per);
         call('media', { ids: part.map(([k]) => k.split('|')[1]), which }).then(res => {
           for (const [k, e] of part) {
             const b = res[k.split('|')[1]];
-            if (b) { const u = URL.createObjectURL(b64ToBlob(b, 'image/jpeg')); cache.set(k, u); e.res(u); } else e.rej(mkErr('NO_MEDIA'));
+            if (b) { const blob = b64ToBlob(b, 'image/jpeg'), u = URL.createObjectURL(blob); cache.set(k, u); diskPut(k, blob); e.res(u); } else e.rej(mkErr('NO_MEDIA'));
           }
         }).catch(err => part.forEach(([, e]) => e.rej(err)));
       }
     }
   }
+  // 看過的縮圖存在這台手機，下次打開馬上出現（登出會清掉）
+  const MC = 'album-media-v1', mkey = k => './__media/' + k.replace('|', '/');
+  const diskGet = async k => { try { const c = await caches.open(MC), r = await c.match(mkey(k)); return r ? await r.blob() : null; } catch { return null; } };
+  const diskPut = (k, blob) => { try { caches.open(MC).then(c => c.put(mkey(k), new Response(blob, { headers: { 'Content-Type': 'image/jpeg' } }))).catch(() => {}); } catch {} };
   function media(p, which) {
     const k = which + '|' + p.id;
     if (cache.has(k)) return Promise.resolve(cache.get(k));
     if (inflight.has(k)) return inflight.get(k);
-    const pr = new Promise((res, rej) => { pending.set(k, { which, res, rej }); if (!timer) timer = setTimeout(flush, 60); })
-      .finally(() => inflight.delete(k));
+    const pr = diskGet(k).then(b => {
+      if (b) { const u = URL.createObjectURL(b); cache.set(k, u); return u; }
+      return new Promise((res, rej) => { pending.set(k, { which, res, rej }); if (!timer) timer = setTimeout(flush, 40); });
+    }).finally(() => inflight.delete(k));
     inflight.set(k, pr); return pr;
   }
+  function seed(id, which, blob) { const k = which + '|' + id; cache.set(k, URL.createObjectURL(blob)); diskPut(k, blob); }
   // 原檔（影片、下載原圖）分段取回
   async function original(p, onProg) {
     const k = 'full|' + p.id;
@@ -446,7 +475,7 @@ function makeGAS(url, clientId) {
     },
     renderButton(el) { waitGIS().then(() => google.accounts.id.renderButton(el, { theme: 'filled_blue', size: 'large', shape: 'pill', text: 'signin_with', locale: 'zh-TW', width: 280 })).catch(() => {}); },
     async signIn() { await waitGIS(); google.accounts.id.prompt(); },
-    async signOut() { token = ''; LS.set(TOKEN_KEY, ''); cache.forEach(u => URL.revokeObjectURL(u)); cache.clear(); try { google.accounts.id.disableAutoSelect(); } catch {} },
+    async signOut() { token = ''; LS.set(TOKEN_KEY, ''); cache.forEach(u => URL.revokeObjectURL(u)); cache.clear(); try { await caches.delete(MC); } catch {} try { google.accounts.id.disableAutoSelect(); } catch {} },
     currentEmail() { return jwtPayload(token).email || ''; },
     bootstrap() { return call('bootstrap'); },
     setConfig(c) { return call('setConfig', { cfg: c }); },
@@ -467,9 +496,11 @@ function makeGAS(url, clientId) {
         catch (e) { if (e.code !== 'NETWORK') throw e; await new Promise(r => setTimeout(r, 2000)); await call('uploadChunk', { uploadId, start: s, b64 }); }
         onProg?.(Math.min(1, (s + CH) / full.size));
       }
-      return { ...(await call('uploadFinish', { uploadId })) };
+      const rec = await call('uploadFinish', { uploadId });
+      seed(rec.id, 'thumb', parts.thumb); if (parts.disp) seed(rec.id, 'disp', parts.disp);
+      return { ...rec };
     },
-    getMediaURL(p, which, onProg) { return which === 'full' ? original(p, onProg) : media(p, which); },
+    getMediaURL(p, which, onProg) { if (p._url) return Promise.resolve(p._url[which] || p._url.disp || p._url.thumb); return which === 'full' ? original(p, onProg) : media(p, which); },
     updatePhoto(p, patch) { return call('updatePhoto', { id: p.id, patch }); },
     toggleLike(p, email, on) { return call('like', { id: p.id, on }); },
     listComments(p) { return call('comments', { id: p.id }); },
@@ -735,7 +766,9 @@ const normalPhotos = () => S.photos.filter(p => p.state === 'normal').sort((a, b
 const visiblePhotos = () => normalPhotos().filter(p => !S.albumId || p.albumId === S.albumId);
 function tile(p, list, extra = '') {
   const isNew = p.createdAt > S.prevSeen && p.uploader !== S.me.email, likes = (p.likes || []).length;
-  return `<button class="tile" data-act="open" data-key="${p.albumId}/${p.id}" data-list="${list}" aria-label="查看照片">
+  const ph = p.ph ? ` style="background-image:url('${p.ph}')"` : '';
+  if (p._local) return `<button class="tile up" data-act="upInfo" data-key="${p.albumId}/${p.id}" aria-label="上傳中"${ph}><img src="${p._url.thumb}" class="ok" alt=""><span class="upbar"><i style="width:${Math.max(4, Math.round((p._prog || 0) * 100))}%"></i></span></button>`;
+  return `<button class="tile" data-act="open" data-key="${p.albumId}/${p.id}" data-list="${list}" aria-label="查看照片"${ph}>
     <img data-media="${p.albumId}/${p.id}/thumb" alt="">
     ${isNew ? '<span class="b new">新</span>' : ''}${p.milestone ? `<span class="b ms">${ic('star', 12)}</span>` : ''}
     ${p.kind === 'video' ? `<span class="b vid">${ic('play', 11, 'play')}${p.duration ? Math.floor(p.duration / 60) + ':' + pad(p.duration % 60) : ''}</span>` : ''}
@@ -784,7 +817,7 @@ function viewAlbums() {
     const cover = ps.find(p => p.id === a.coverId) || ps[0];
     const extra = (a.allowed || []).length ? `，另開放 ${a.allowed.length} 人` : '';
     return `<div class="album"><button data-act="openAlbum" data-id="${a.id}" style="width:100%;text-align:left;display:block">
-      <div class="cv">${cover ? `<img data-media="${cover.albumId}/${cover.id}/thumb" alt="">` : ic('image', 34)}</div>
+      <div class="cv${cover && cover.h > cover.w * 1.1 ? ' por' : ''}"${cover?.ph ? ` style="--ph:url('${cover.ph}')"` : ''}>${cover ? `<img data-media="${cover.albumId}/${cover.id}/${cover.kind === 'video' ? 'thumb' : 'disp'}" alt="">` : ic('image', 34)}</div>
       <div class="meta"><b>${esc(a.name)}</b><small><span>${ps.length} 項</span><span class="vis">${visIc(a.visibility, 12)}${visShort(a.visibility)}${extra}</span>${a.allowUpload ? '<span>可上傳</span>' : ''}</small></div></button>
       ${isAdmin() ? `<button class="edit" data-act="editAlbum" data-id="${a.id}">${ic('edit', 13)}權限</button>` : ''}</div>`;
   }).join('');
@@ -906,8 +939,6 @@ function babyCard() {
 }
 function syncBrand() {
   document.title = `${babyName()}的相簿`;
-  const l = document.querySelector('link[rel=icon]');
-  if (l && S.cfg.birthday) l.href = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(babyIcon(babyMonths(), S.cfg.gender || ''));
 }
 
 /* 編輯寶寶資料（第一次設定時也用這個） */
@@ -985,9 +1016,16 @@ const io = new IntersectionObserver(es => es.forEach(async e => {
   const img = e.target; io.unobserve(img);
   const [aid, pid, which] = img.dataset.media.split('/'); const p = findPhoto(aid, pid);
   if (!p) return;
-  try { img.src = await S.be.getMediaURL(p, which); img.onload = () => img.classList.add('ok'); }
+  try { img.src = await S.be.getMediaURL(p, which); img.onload = () => { img.classList.add('ok'); backfillPh(p, img); }; }
   catch { img.closest('.tile, .th, .cv')?.classList.add('err'); }
 }), { rootMargin: '400px' });
+// 舊照片沒有模糊預覽圖：管理者或上傳者看到時順手補上（一次最多 40 張）
+let phBudget = 40;
+function backfillPh(p, img) {
+  if (p.ph || p._local || phBudget <= 0 || !(isAdmin() || p.uploader === S.me?.email) || S.be.demo) return;
+  const ph = tinyPh(img, img.naturalWidth, img.naturalHeight); if (!ph) return;
+  phBudget--; p.ph = ph; S.be.updatePhoto(p, { ph }).catch(() => {});
+}
 function observeMedia(root = document) { root.querySelectorAll('img[data-media]').forEach(i => io.observe(i)); }
 
 /* ---------- 彈出視窗 ---------- */
@@ -1037,31 +1075,71 @@ function openUpload() {
     <div class="row" style="margin-top:.6rem"><button class="btn" data-act="doUpload">${ic('upload', 18)}開始上傳</button><button class="btn ghost" data-act="closeModal">取消</button></div>
     <div class="prog" id="upProg"></div>`);
 }
-async function doUpload(btn) {
+/* 背景上傳：選完就關掉視窗，照片先用手機裡壓好的小圖顯示，原檔在背景慢慢傳 */
+const UQ = { items: [], running: 0, total: 0, done: 0, ok: 0, okBy: {}, failed: [] };
+function doUpload(btn) {
   const files = [...$('#upFiles').files]; if (!files.length) return toast('請先選擇檔案');
   const albumId = $('#upAlbum').value, caption = $('#upCap').value.trim(), milestone = readMs();
-  const modal = $('#modal'); modal.dataset.lock = '1'; btn.disabled = true;
-  const prog = $('#upProg'); prog.innerHTML = files.map((f, i) => `<div class="p"><span>${esc(f.name.slice(0, 28))}</span><span id="pg${i}">等待中</span></div>`).join('');
-  let ok = 0;
-  for (let i = 0; i < files.length; i++) {
-    const f = files[i], st = $('#pg' + i);
-    if (S.photos.some(p => p.albumId === albumId && p.srcName === f.name && p.srcSize === f.size && p.state !== 'trash')) { st.textContent = '已上傳過，略過'; continue; }
-    try {
-      st.textContent = '處理中…';
-      const item = await prepareFile(f);
-      st.textContent = '上傳中…';
-      const meta = { kind: item.kind, takenAt: item.takenAt, createdAt: Date.now(), uploader: S.me.email, caption, milestone, w: item.w, h: item.h, srcName: f.name, srcSize: f.size };
-      if (item.duration) meta.duration = item.duration;
-      S.photos.push(await S.be.upload(albumId, item, meta, x => st.textContent = '上傳中 ' + Math.round(x * 100) + '%'));
-      st.textContent = '完成'; st.className = 'ok'; ok++;
-    } catch (e) { console.error(e); st.className = 'bad'; st.textContent = '失敗：' + (e.code === 'NO_UPLOAD' ? '沒有上傳權限' : (e.message || '未知錯誤')).slice(0, 30); }
-  }
-  if (ok) logAct(`上傳了 ${ok} 個檔案到「${albumById(albumId)?.name}」`);
-  delete modal.dataset.lock;
-  btn.disabled = false; btn.textContent = '完成'; btn.dataset.act = 'closeModal';
-  toast(`上傳完成 ${ok}/${files.length}`); S.tab = 'timeline'; S.albumId = null;
-  render(); document.body.appendChild(modal);
+  files.forEach(f => UQ.items.push({ f, albumId, caption, milestone }));
+  UQ.total += files.length;
+  closeModal(); toast(`已開始上傳 ${files.length} 個，可以繼續瀏覽`);
+  S.tab = 'timeline'; S.albumId = null; render(); scrollTo(0, 0);
+  pumpUpload();
 }
+function pumpUpload() { while (UQ.running < 2 && UQ.items.length) runUpload(UQ.items.shift()); drawUpPill(); }
+const softRender = () => { if (['timeline', 'albums', 'milestones'].includes(S.tab) && !S.adminView) render(); };
+async function runUpload(job) {
+  UQ.running++; drawUpPill();
+  let local = null;
+  try {
+    const f = job.f;
+    if (S.photos.some(p => p.albumId === job.albumId && p.srcName === f.name && p.srcSize === f.size && p.state !== 'trash')) { UQ.skip = (UQ.skip || 0) + 1; return; }
+    const item = await prepareFile(f);
+    const meta = { kind: item.kind, takenAt: item.takenAt, createdAt: Date.now(), uploader: S.me.email, caption: job.caption, milestone: job.milestone, w: item.w, h: item.h, srcName: f.name, srcSize: f.size, ph: item.ph || '' };
+    if (item.duration) meta.duration = item.duration;
+    const _url = {}; item.parts.forEach(([k, b]) => { if (k !== 'full') _url[k] = URL.createObjectURL(b); });
+    local = { id: 'up' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), albumId: job.albumId, ...meta, state: 'normal', likes: [], commentCount: 0, _local: true, _url, _prog: 0 };
+    S.photos.push(local); softRender();
+    const rec = await S.be.upload(job.albumId, item, meta, x => { local._prog = x; updUpTile(local); drawUpPill(); });
+    const i = S.photos.indexOf(local); if (i >= 0) S.photos[i] = rec; else S.photos.push(rec);
+    setTimeout(() => Object.values(_url).forEach(u => URL.revokeObjectURL(u)), 60000);
+    UQ.ok++; UQ.okBy[job.albumId] = (UQ.okBy[job.albumId] || 0) + 1;
+    softRender();
+  } catch (e) {
+    console.error(e);
+    if (local) { S.photos = S.photos.filter(p => p !== local); softRender(); }
+    job.err = e.code === 'NO_UPLOAD' ? '沒有上傳權限' : (e.message || e.code || '未知錯誤');
+    UQ.failed.push(job);
+  } finally {
+    UQ.running--; UQ.done++;
+    if (!UQ.running && !UQ.items.length) finishUploads();
+    pumpUpload();
+  }
+}
+function finishUploads() {
+  Object.entries(UQ.okBy).forEach(([aid, n]) => logAct(`上傳了 ${n} 個檔案到「${albumById(aid)?.name || ''}」`));
+  const msg = `上傳完成 ${UQ.ok} 個` + (UQ.skip ? `，略過重複 ${UQ.skip} 個` : '') + (UQ.failed.length ? `，${UQ.failed.length} 個失敗` : '');
+  toast(msg, 3500);
+  Object.assign(UQ, { total: UQ.failed.length, done: 0, ok: 0, okBy: {}, skip: 0 });
+}
+function updUpTile(p) {
+  const bar = document.querySelector(`.tile[data-key="${p.albumId}/${p.id}"] .upbar i`);
+  if (bar) bar.style.width = Math.max(4, Math.round((p._prog || 0) * 100)) + '%';
+}
+function drawUpPill() {
+  let el = $('#upPill');
+  const busy = UQ.running || UQ.items.length;
+  if (!busy && !UQ.failed.length) { el?.remove(); return; }
+  if (!el) { el = document.createElement('div'); el.id = 'upPill'; el.className = 'uppill'; document.body.appendChild(el); }
+  if (busy) {
+    const cur = S.photos.filter(p => p._local), pr = cur.length ? cur.reduce((s, p) => s + (p._prog || 0), 0) / cur.length : 0;
+    el.innerHTML = `<span class="spin sm"></span><span>上傳中 ${Math.min(UQ.done + 1, UQ.total)}/${UQ.total}${cur.length ? ` · ${Math.round(pr * 100)}%` : ''}</span><small>請先不要關掉 App</small>`;
+    el.removeAttribute('data-act');
+  } else {
+    el.innerHTML = `${ic('alert', 18)}<span>${UQ.failed.length} 個上傳失敗</span><button class="btn sm" data-act="upRetry">重試</button><button class="ibtn" data-act="upDismiss" aria-label="關閉">${ic('close', 18)}</button>`;
+  }
+}
+window.addEventListener('beforeunload', e => { if (UQ.running || UQ.items.length) { e.preventDefault(); e.returnValue = ''; } });
 
 /* ---------- 看大圖 ---------- */
 function lbList(name) {
@@ -1072,9 +1150,14 @@ function lbList(name) {
   return visiblePhotos();
 }
 function openLB(key, listName) {
-  const list = lbList(listName); const i = list.findIndex(p => `${p.albumId}/${p.id}` === key);
+  const list = lbList(listName).filter(p => !p._local); const i = list.findIndex(p => `${p.albumId}/${p.id}` === key);
   if (i < 0) return;
   S.lb = { list, i, listName }; drawLB();
+}
+// 先把前後兩張的大圖抓好，滑過去就不用等
+function prefetchNear() {
+  const L = S.lb; if (!L) return;
+  [L.i + 1, L.i - 1, L.i + 2].forEach(j => { const q = L.list[j]; if (q && q.kind !== 'video') S.be.getMediaURL(q, 'disp').catch(() => {}); });
 }
 async function drawLB() {
   const { list, i } = S.lb, p = list[i];
@@ -1089,7 +1172,7 @@ async function drawLB() {
       <button class="ibtn" data-act="shareOpen" title="分享" aria-label="分享">${ic('share', 22)}</button>
       ${me.canDownload ? `<button class="ibtn" data-act="download" title="下載" aria-label="下載">${ic('download', 22)}</button>` : ''}
     </div>
-    <div class="lb-stage" id="lbStage">
+    <div class="lb-stage" id="lbStage"${p.ph ? ` style="--ph:url('${p.ph}')"` : ''}>
       ${p.kind === 'video' && !p._demoVideo ? '<video id="lbMedia" controls playsinline preload="metadata"></video>' : '<img id="lbMedia" alt="">'}
       ${i > 0 ? `<button class="nav prev" data-act="lbGo" data-d="-1" aria-label="上一張">${ic('back', 22)}</button>` : ''}${i < list.length - 1 ? `<button class="nav next" data-act="lbGo" data-d="1" aria-label="下一張">${ic('next', 22)}</button>` : ''}
     </div>
@@ -1112,7 +1195,12 @@ async function drawLB() {
   const media = $('#lbMedia');
   if (!me.canDownload) media.addEventListener('contextmenu', e => e.preventDefault());
   try {
-    if (media.tagName === 'IMG') { media.src = await S.be.getMediaURL(p, 'thumb'); S.be.getMediaURL(p, 'disp').then(u => { if ($('#lbMedia') === media) media.src = u; }).catch(() => {}); }
+    if (media.tagName === 'IMG') {
+      let gotDisp = false;
+      const dp = S.be.getMediaURL(p, 'disp').then(u => { gotDisp = true; if ($('#lbMedia') === media) media.src = u; prefetchNear(); });
+      S.be.getMediaURL(p, 'thumb').then(u => { if (!gotDisp && $('#lbMedia') === media) media.src = u; }).catch(() => {});
+      await dp;
+    }
     else {
       media.poster = await S.be.getMediaURL(p, 'thumb');
       const pg = document.createElement('div'); pg.className = 'lb-prog'; pg.textContent = '影片載入中…'; $('#lbStage').appendChild(pg);
@@ -1252,6 +1340,9 @@ const ACT = {
   feed: () => openFeed(),
   upload: () => openUpload(),
   doUpload: el => doUpload(el),
+  upInfo: () => toast('這張還在上傳，完成後就能打開'),
+  upRetry: () => { const f = UQ.failed; UQ.failed = []; UQ.items.push(...f); UQ.total = f.length; UQ.done = 0; pumpUpload(); },
+  upDismiss: () => { UQ.failed = []; UQ.total = 0; drawUpPill(); },
   closeModal: () => closeModal(),
   open: el => { closeModal(); openLB(el.dataset.key, el.dataset.list); },
   lbClose: () => closeLB(),
