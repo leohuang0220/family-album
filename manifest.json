@@ -1,14 +1,18 @@
 {
+  "id": "/family-album/",
   "name": "寶寶家庭相簿",
   "short_name": "家庭相簿",
-  "start_url": "./",
-  "scope": "./",
+  "description": "只給家人看的寶寶相簿",
+  "start_url": "/family-album/",
+  "scope": "/family-album/",
   "display": "standalone",
-  "background_color": "#fff8f3",
-  "theme_color": "#ffb4a2",
+  "orientation": "portrait",
+  "background_color": "#F6F9FB",
+  "theme_color": "#F6F9FB",
+  "lang": "zh-Hant",
   "icons": [
-    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
-    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }
