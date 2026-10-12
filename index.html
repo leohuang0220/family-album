@@ -368,28 +368,54 @@ function resize(src, w, h, max, q) {
   c.getContext('2d').drawImage(src, 0, 0, c.width, c.height);
   return new Promise(r => c.toBlob(r, 'image/jpeg', q));
 }
-async function videoPoster(file) {
-  const url = URL.createObjectURL(file); const v = document.createElement('video');
-  v.muted = true; v.playsInline = true; v.preload = 'auto'; v.src = url;
+// 從影片抓一張有畫面的縮圖（避開全黑的開頭；部分 Android 要先播一下才解得出畫面）
+async function grabFrame(src) {
+  const v = document.createElement('video');
+  v.muted = true; v.playsInline = true; v.preload = 'auto'; v.src = src;
+  const wait = (ev, ms) => new Promise((ok, no) => {
+    const t = setTimeout(() => no(new Error('timeout')), ms);
+    v.addEventListener(ev, () => { clearTimeout(t); ok(); }, { once: true });
+    v.addEventListener('error', () => { clearTimeout(t); no(new Error('decode')); }, { once: true });
+  });
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
   try {
-    await Promise.race([new Promise((ok, no) => { v.onloadedmetadata = ok; v.onerror = no; }), new Promise((_, no) => setTimeout(no, 8000))]);
-    v.currentTime = Math.min(1, (v.duration || 0) / 2);
-    await Promise.race([new Promise(ok => v.onseeked = ok), new Promise((_, no) => setTimeout(no, 8000))]);
-    const poster = await resize(v, v.videoWidth, v.videoHeight, 480, .8);
-    return { poster, ph: tinyPh(v, v.videoWidth, v.videoHeight), w: v.videoWidth, h: v.videoHeight, duration: Math.round(v.duration || 0) };
-  } catch {
+    await wait('loadeddata', 20000);
+    if (!v.videoWidth) { await v.play().catch(() => {}); await sleep(400); v.pause(); }
+    const w = v.videoWidth, h = v.videoHeight; if (!w || !h) throw new Error('nosize');
+    const dur = isFinite(v.duration) ? v.duration : 0;
+    const s = Math.min(1, 480 / Math.max(w, h)), c = document.createElement('canvas');
+    c.width = Math.round(w * s); c.height = Math.round(h * s); const g = c.getContext('2d', { willReadFrequently: true });
+    const times = [Math.min(0.8, dur * 0.1), Math.min(2.5, dur * 0.3), dur * 0.5].filter((t, i, a) => t >= 0 && a.indexOf(t) === i);
+    for (const t of times) {
+      if (Math.abs(v.currentTime - t) > 0.05) { v.currentTime = t; await wait('seeked', 15000).catch(() => {}); }
+      await sleep(250);
+      g.drawImage(v, 0, 0, c.width, c.height);
+      const d = g.getImageData(0, 0, c.width, c.height).data; let sum = 0, n = 0;
+      for (let i = 0; i < d.length; i += 4 * 97) { sum += d[i] + d[i + 1] + d[i + 2]; n++; }
+      if (sum / (n * 3) > 14) break;   // 不是一片黑就用這張
+    }
+    const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', .82));
+    return { blob, ph: tinyPh(c, c.width, c.height), w, h, duration: Math.round(dur) };
+  } finally { v.removeAttribute('src'); v.load(); }
+}
+async function videoPoster(file) {
+  const url = URL.createObjectURL(file);
+  try { const f = await grabFrame(url); return { poster: f.blob, ph: f.ph, w: f.w, h: f.h, duration: f.duration }; }
+  catch {
     const c = document.createElement('canvas'); c.width = c.height = 480; const g = c.getContext('2d');
-    g.fillStyle = '#f6d6cc'; g.fillRect(0, 0, 480, 480); g.fillStyle = '#fff'; g.font = '160px sans-serif'; g.textAlign = 'center'; g.fillText('▶', 240, 300);
-    return { poster: await new Promise(r => c.toBlob(r, 'image/jpeg', .8)), w: 0, h: 0, duration: 0 };
+    g.fillStyle = '#DCE8F0'; g.fillRect(0, 0, 480, 480);
+    g.fillStyle = 'rgba(255,255,255,.9)'; g.beginPath(); g.arc(240, 240, 70, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#2E7DA8'; g.beginPath(); g.moveTo(218, 200); g.lineTo(218, 280); g.lineTo(285, 240); g.closePath(); g.fill();
+    return { poster: await new Promise(r => c.toBlob(r, 'image/jpeg', .85)), ph: '', w: 0, h: 0, duration: 0, noFrame: true };
   } finally { URL.revokeObjectURL(url); }
 }
 async function prepareFile(file) {
   if (file.type.startsWith('video/')) {
     if (file.size > MAX_VIDEO) throw new Error('影片超過 200MB，請先剪短');
-    const { poster, ph, w, h, duration } = await videoPoster(file);
+    const { poster, ph, w, h, duration, noFrame } = await videoPoster(file);
     const ext = (file.name.split('.').pop() || 'mp4').toLowerCase().replace(/[^a-z0-9]/g, '') || 'mp4';
     const vid = new Blob([file], { type: file.type || 'video/mp4' });
-    return { kind: 'video', origName: file.name, takenAt: file.lastModified || Date.now(), w, h, duration, ph, parts: [['thumb', poster, 'thumb.jpg'], ['full', vid, 'video.' + ext]] };
+    return { kind: 'video', origName: file.name, takenAt: file.lastModified || Date.now(), w, h, duration, ph, noFrame, parts: [['thumb', poster, 'thumb.jpg'], ['full', vid, 'video.' + ext]] };
   }
   const takenAt = (await exifDate(file)) || file.lastModified || Date.now();
   const img = await loadImg(file);
@@ -532,6 +558,7 @@ function makeGAS(url, clientId) {
     },
     getMediaURL(p, which, onProg) { if (p._url) return Promise.resolve(p._url[which] || p._url.disp || p._url.thumb); return which === 'full' ? original(p, onProg) : media(p, which); },
     updatePhoto(p, patch) { return call('updatePhoto', { id: p.id, patch }); },
+    async setThumb(p, blob, ph) { const r = await call('setThumb', { id: p.id, b64: await toB64(blob), ph }); seed(p.id, 'thumb', blob); return r; },
     toggleLike(p, email, on) { return call('like', { id: p.id, on }); },
     listComments(p) { return call('comments', { id: p.id }); },
     addComment(p, c) { return call('addComment', { id: p.id, text: c.text }); },
@@ -620,6 +647,7 @@ function makeDemo() {
     },
     async getMediaURL(p, which) { const src = photos.find(x => x.id === p.id); if (!src) throw new Error('gone'); return src._url[which] || src._url.disp || src._url.full || src._url.thumb; },
     async updatePhoto(p, patch) { Object.assign(photos.find(x => x.id === p.id), patch); },
+    async setThumb(p, blob, ph) { const x = photos.find(y => y.id === p.id); x._url.thumb = URL.createObjectURL(blob); x.ph = ph; x.thumbOk = true; return { ...x }; },
     async toggleLike(p, email, on) { const x = photos.find(y => y.id === p.id); x.likes = on ? [...new Set([...x.likes, email])] : x.likes.filter(e => e !== email); },
     async listComments(p) { return clone(comments[p.albumId + '/' + p.id] || []); },
     async addComment(p, c) { const k = p.albumId + '/' + p.id, n = { id: 'c' + Date.now(), ...c }; (comments[k] ||= []).push(n); photos.find(x => x.id === p.id).commentCount++; return n; },
@@ -1127,6 +1155,7 @@ async function runUpload(job) {
     const item = await prepareFile(f);
     const meta = { kind: item.kind, takenAt: item.takenAt, createdAt: Date.now(), uploader: S.me.email, caption: job.caption, milestone: job.milestone, w: item.w, h: item.h, srcName: f.name, srcSize: f.size, ph: item.ph || '' };
     if (item.duration) meta.duration = item.duration;
+    if (item.kind === 'video' && !item.noFrame) meta.thumbOk = true;
     const _url = {}; item.parts.forEach(([k, b]) => { if (k !== 'full') _url[k] = URL.createObjectURL(b); });
     local = { id: 'up' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), albumId: job.albumId, ...meta, state: 'normal', likes: [], commentCount: 0, _local: true, _url, _prog: 0 };
     S.photos.push(local); softRender();
@@ -1199,6 +1228,17 @@ function openLB(key, listName) {
   if (i < 0) return;
   S.lb = { list, i, listName }; drawLB();
 }
+// 舊影片當初沒抓到畫面：管理者或上傳者打開播放時，自動補一張真正的縮圖
+async function fixVideoThumb(p, url) {
+  if (p.thumbOk || p._fixing || !(isAdmin() || p.uploader === S.me.email)) return;
+  p._fixing = true;
+  try {
+    const f = await grabFrame(url);
+    const r = await S.be.setThumb(p, f.blob, f.ph);
+    Object.assign(p, { ph: r.ph || f.ph, thumbOk: true });
+    document.querySelectorAll(`img[data-media="${p.albumId}/${p.id}/thumb"]`).forEach(i => { i.src = URL.createObjectURL(f.blob); });
+  } catch (e) { console.warn('thumb fix', e); } finally { p._fixing = false; }
+}
 // 先把前後兩張的大圖抓好，滑過去就不用等
 function prefetchNear() {
   const L = S.lb; if (!L) return;
@@ -1251,6 +1291,7 @@ async function drawLB() {
       const pg = document.createElement('div'); pg.className = 'lb-prog'; pg.textContent = '影片載入中…'; $('#lbStage').appendChild(pg);
       const u = await S.be.getMediaURL(p, 'full', f => pg.textContent = `影片載入中 ${Math.round(f * 100)}%`);
       pg.remove(); if ($('#lbMedia') === media) media.src = u;
+      fixVideoThumb(p, u);
     }
   } catch { toast('檔案讀取失敗'); }
   let sx = null; const stage = $('#lbStage');
