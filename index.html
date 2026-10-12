@@ -185,6 +185,26 @@ html.big .grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}
 @keyframes s{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){.spin{animation-duration:3s}.tile img,.album .cv img{transition:none}}
 
+
+.bav{display:inline-flex;flex:none;border-radius:50%;overflow:hidden;align-items:flex-end;justify-content:center}
+.bav img,.bav svg{width:100%;height:100%;object-fit:cover;display:block}
+header.top{gap:.65rem}
+.bcard{display:flex;gap:.9rem;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:.85rem 1rem;margin-bottom:1rem}
+.bcard .grow{flex:1;min-width:0}.bcard b{font-size:1.15rem;display:block}.bcard .full{font-weight:400;color:var(--sub);font-size:.9rem;margin-left:.45rem}
+.bcard small{display:block;color:var(--sub);font-size:.85rem;margin-top:.1rem}.bcard small.nx{display:flex;gap:.3rem;align-items:center;color:var(--accent)}
+.av-prev{display:flex;justify-content:center;margin:.6rem 0}#avPrev{display:flex;flex-direction:column;align-items:center;gap:.3rem}
+.seg{display:flex;gap:.4rem;flex-wrap:wrap}.seg label{cursor:pointer}.seg input{position:absolute;opacity:0;width:0;height:0}
+.seg span{display:inline-block;padding:.5rem .95rem;border:1px solid var(--line);border-radius:999px;background:var(--surface);font-weight:600;font-size:.9rem}
+.seg input:checked+span{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.seg input:focus-visible+span{outline:2px solid var(--accent);outline-offset:2px}
+.tour{position:fixed;inset:0;z-index:90;background:var(--bg);display:flex;flex-direction:column;padding-top:env(safe-area-inset-top)}
+.tour .stage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:1.5rem;max-width:460px;width:100%;margin:0 auto}
+.tour .big-ic{width:128px;height:128px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;margin-bottom:1.6rem;overflow:hidden}
+.tour .big-ic .bav{width:128px!important;height:128px!important}
+.tour h2{font-size:1.5rem;margin:0 0 .6rem}.tour p{color:var(--sub);line-height:1.75;margin:0}
+.tour .foot{padding:1rem 1.2rem calc(1.2rem + env(safe-area-inset-bottom));display:flex;gap:.6rem;align-items:center;justify-content:space-between;max-width:460px;width:100%;margin:0 auto}
+.tour .skip{color:var(--sub);min-width:4rem;text-align:left;padding:.5rem 0}
+.tour .dots{display:flex;gap:.4rem}.tour .dots i{width:7px;height:7px;border-radius:4px;background:var(--line)}.tour .dots i.on{background:var(--accent);width:20px}
 </style>
 </head>
 <body>
@@ -495,7 +515,7 @@ function makeDemo() {
     { at: now - 1 * day, actor: 'grandpa@demo', actorName: '爺爺', text: '上傳了 1 張到「日常生活」' },
     { at: now - 3 * day, actor: 'mom@demo', actorName: '媽媽', text: '把「小阿姨」加入相簿（只能看）' },
   ];
-  let current = 'dad@demo', cfg = { babyName: '果果', birthday, showPresence: true };
+  let current = 'dad@demo', cfg = { babyName: '果果', fullName: '黃小果', gender: 'girl', birthday, showPresence: true, setupDone: true };
   const clone = o => JSON.parse(JSON.stringify(o));
   return {
     demo: true, members,
@@ -569,6 +589,7 @@ const ICONS = {
   check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
   alert: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v5.5M12 16.3v.1"/>',
   bell: '<path d="M6 17v-6a6 6 0 0 1 12 0v6l1.5 2h-15zM10 21h4"/>',
+  help: '<circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.6a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1.1.9-1.1 1.7M12 16.6v.1"/>',
   clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
   log: '<path d="M7 4.5h10A1.5 1.5 0 0 1 18.5 6v13a1.5 1.5 0 0 1-1.5 1.5H7A1.5 1.5 0 0 1 5.5 19V6A1.5 1.5 0 0 1 7 4.5zM9 9h6M9 13h6M9 16.5h3.5"/>',
   link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
@@ -619,7 +640,7 @@ async function loadAll(keepView) {
     if (!keepView) { S.prevSeen = LS.get(key, Date.now() - 3 * 864e5); LS.set(key, Date.now()); }
     if (S.albumId && !albumById(S.albumId)) S.albumId = null;
     render();
-    openDeepLink();
+    if (!openDeepLink() && !keepView) maybeOnboard();
   } catch (e) {
     console.error(e);
     S.me = null;
@@ -631,11 +652,12 @@ async function loadAll(keepView) {
 }
 // 從分享連結進來：?p=相簿~照片，登入後直接打開那張
 function openDeepLink() {
-  if (S.dl) return; S.dl = true;
-  const q = new URLSearchParams(location.search).get('p'); if (!q) return;
+  if (S.dl) return false; S.dl = true;
+  const q = new URLSearchParams(location.search).get('p'); if (!q) return false;
   try { history.replaceState(null, '', location.pathname); } catch {}
   const [a, pid] = q.split('~'), ph = findPhoto(a, pid);
   if (ph) openLB(a + '/' + pid, 'all'); else toast('找不到這張照片，或你沒有查看的權限');
+  return true;
 }
 
 function renderLogin(msg) {
@@ -675,7 +697,7 @@ function render() {
     </select></div>` : '';
   app.innerHTML = `
   <header class="top">
-    <div><h1>${esc(babyName())}的相簿</h1>${age ? `<div class="age">今天 ${esc(age)}</div>` : ''}</div>
+    ${babyAvatar(40)}<div><h1>${esc(babyName())}的相簿</h1>${age ? `<div class="age">今天 ${esc(age)}</div>` : ''}</div>
     <span class="sp"></span>
     ${S.be.demo ? '<span class="demo">示範模式</span>' : ''}
     <button class="ibtn" data-act="feed" title="近況" aria-label="近況">${ic('bell', 22)}${hasNew ? '<i class="dot"></i>' : ''}</button>
@@ -689,6 +711,7 @@ function render() {
     ${navBtn('milestones', 'star', '里程碑')}${navBtn('me', isAdmin() ? 'sliders' : 'user', isAdmin() ? '管理' : '我的')}
   </nav>`;
   observeMedia();
+  syncBrand();
 }
 const navBtn = (t, i, l) => `<button class="${S.tab === t ? 'on' : ''}" data-act="tab" data-tab="${t}">${ic(i, 24)}<span>${l}</span></button>`;
 function view() {
@@ -722,10 +745,11 @@ function memories() {
 function viewTimeline() {
   const ps = visiblePhotos(), al = S.albumId && albumById(S.albumId);
   const head = al ? `<div class="row" style="margin-bottom:.4rem"><span class="chip">${ic('folder', 15)}${esc(al.name)}<span class="vis">${visIc(al.visibility, 12)}${visShort(al.visibility)}</span></span><button class="chip" data-act="clearAlbum">${ic('close', 13)}看全部</button></div>` : '';
-  if (!ps.length) return head + `<div class="empty">${ic('image', 44)}<p>這裡還沒有照片</p>${uploadableAlbums().length ? '<p class="hint">按下方的加號，上傳第一張吧。</p>' : ''}</div>`;
+  const bc = !S.albumId ? babyCard() : '';
+  if (!ps.length) return bc + head + `<div class="empty">${ic('image', 44)}<p>這裡還沒有照片</p>${uploadableAlbums().length ? '<p class="hint">按下方的加號，上傳第一張吧。</p>' : ''}</div>`;
   const newCount = ps.filter(p => p.createdAt > S.prevSeen && p.uploader !== S.me.email).length;
   const mem = !S.albumId ? memories() : [];
-  let html = head + (newCount ? `<div class="note">${ic('bell', 17)}上次之後新增了 ${newCount} 項</div>` : '');
+  let html = bc + head + (newCount ? `<div class="note">${ic('bell', 17)}上次之後新增了 ${newCount} 項</div>` : '');
   if (mem.length) html += `<section class="mem"><h2>${ic('clockBack', 19)}回憶</h2><div class="strip">${mem.map(({ p, diff }) => tile(p, 'memories', `<span class="lab">${diff} 個月前</span>`)).join('')}</div></section>`;
   const groups = new Map();
   ps.forEach(p => { const d = new Date(p.takenAt), k = d.getFullYear() * 100 + d.getMonth(); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(p); });
@@ -773,7 +797,9 @@ function viewMe() {
     <div class="info"><b>${esc(S.me.name || S.me.email)}</b> <span class="role ${S.me.role}">${ROLES[S.me.role].short}</span><small>${esc(S.me.email)}</small></div></div>
     <p class="hint" style="margin:.4rem 0 0">你可以：${ROLES[S.me.role].can}${S.me.canDownload ? '、下載照片' : ''}。</p></div>
     ${bigTextCard()}
-    <button class="btn ghost" data-act="signOut" style="width:100%">登出</button>`;
+    <button class="btn ghost" data-act="replayTour" style="width:100%;margin-bottom:.6rem">${ic('help', 17)}重看使用導覽</button>
+    <button class="btn ghost" data-act="replayTour" style="width:100%;margin-bottom:.6rem">${ic('help', 17)}重看使用導覽</button>
+  <button class="btn ghost" data-act="signOut" style="width:100%">登出</button>`;
 }
 function viewAdmin() {
   const mem = S.members.slice().sort((a, b) => (b.role === 'admin') - (a.role === 'admin') || (a.name || '').localeCompare(b.name || ''));
@@ -798,11 +824,9 @@ function viewAdmin() {
       <small>${esc(m.email)}</small><small>${m.canDownload ? '可下載' : '不可下載'} · ${ago(m.lastSeen)}</small></div>
       ${m.owner ? '<small class="hint">爸媽</small>' : `<button class="btn sm ghost" data-act="editMember" data-email="${esc(m.email)}">編輯</button>`}</div>`).join('')}
   </div>
-  <div class="card"><h3>${ic('baby', 20)}寶寶資料</h3>
-    <label class="f" style="margin-top:0">寶寶小名</label><input id="cfgName" value="${esc(S.cfg.babyName || '')}" placeholder="例如：果果">
-    <label class="f">生日（用來自動算出幾個月幾天）</label><input id="cfgBirth" type="date" value="${esc(S.cfg.birthday || '')}">
-    <label class="chk" style="margin-top:.8rem"><input type="checkbox" id="cfgPresence" ${presenceOn() ? 'checked' : ''}> 讓家人看到彼此「最近上線」的時間</label>
-    <button class="btn sm" data-act="saveCfg" style="margin-top:.6rem">儲存</button></div>
+  <div class="card"><div class="row"><h3 style="margin:0">${ic('baby', 20)}寶寶資料</h3><span class="sp"></span><button class="btn sm" data-act="babyEdit">${ic('edit', 16)}編輯</button></div>
+    <div class="mrow" style="padding-bottom:0">${babyAvatar(56)}<div class="info"><b>${esc(babyName())}</b>${S.cfg.fullName ? ` <small style="display:inline">(${esc(S.cfg.fullName)})</small>` : ''}<small>${S.cfg.birthday ? `${esc(S.cfg.birthday)} 出生 · ${esc(babyAge(Date.now()))}` : '還沒設定生日'}</small></div></div>
+    <label class="chk" style="margin-top:.8rem"><input type="checkbox" data-change="presence" ${presenceOn() ? 'checked' : ''}> 讓家人看到彼此「最近上線」的時間</label></div>
   <div class="card"><h3>${ic('shield', 20)}隱私與管理</h3>
     <div class="row"><button class="btn ghost sm" data-act="adminView" data-v="hidden">${ic('eyeOff', 16)}隱藏的照片（${hidden.length}）</button>
     <button class="btn ghost sm" data-act="adminView" data-v="trash">${ic('trash', 16)}回收桶（${trash.length}）</button>
@@ -810,7 +834,139 @@ function viewAdmin() {
     <p class="hint" style="margin-top:.8rem">已使用 ${fmtBytes(totalBytes)}（${S.photos.length} 個項目），存在你的 Google 雲端硬碟「寶寶家庭相簿」資料夾，不另外收費。</p>
     <p class="hint" style="margin-bottom:0">上傳時會保留完整解析度，並自動移除照片裡的 GPS 位置，避免家裡地址外流。</p></div>
   ${bigTextCard()}
+  <button class="btn ghost" data-act="replayTour" style="width:100%;margin-bottom:.6rem">${ic('help', 17)}重看使用導覽</button>
   <button class="btn ghost" data-act="signOut" style="width:100%">登出（${esc(S.me.email)}）</button>`;
+}
+
+/* ---------- 寶寶資料：會長大的圖示、頭像、導覽 ---------- */
+const GENDERS = { girl: '女生', boy: '男生', '': '不指定' };
+const STAGES = ['新生兒', '嬰兒期', '幼兒期', '學齡前', '小學生'];
+const babyMonths = (ts = Date.now(), bday = S.cfg.birthday) => {
+  if (!bday) return -1;
+  const b = new Date(bday + 'T00:00:00'), d = new Date(ts);
+  let m = (d.getFullYear() - b.getFullYear()) * 12 + d.getMonth() - b.getMonth(); if (d.getDate() < b.getDate()) m--;
+  return Math.max(0, m);
+};
+const stageOf = m => m < 0 ? 1 : m < 3 ? 0 : m < 12 ? 1 : m < 36 ? 2 : m < 72 ? 3 : 4;
+function babyIcon(m, gender = '') {
+  const cl = gender === 'girl' ? '#F0A3B8' : gender === 'boy' ? '#8DBFE6' : '#9CCFB0';
+  const cd = gender === 'girl' ? '#E48AA3' : gender === 'boy' ? '#6FA9D6' : '#7DB895';
+  const skin = '#F8D5B8', hair = '#5A4535', ink = '#3B2F2A';
+  const face = (cx, cy, r) => `<circle cx="${cx - r * .32}" cy="${cy + r * .08}" r="${r * .09}" fill="${ink}"/><circle cx="${cx + r * .32}" cy="${cy + r * .08}" r="${r * .09}" fill="${ink}"/>
+    <circle cx="${cx - r * .55}" cy="${cy + r * .36}" r="${r * .15}" fill="#F4A3A3" opacity=".5"/><circle cx="${cx + r * .55}" cy="${cy + r * .36}" r="${r * .15}" fill="#F4A3A3" opacity=".5"/>
+    <path d="M${cx - r * .2} ${cy + r * .42} q${r * .2} ${r * .2} ${r * .4} 0" stroke="${ink}" stroke-width="${Math.max(1.4, r * .08)}" fill="none" stroke-linecap="round"/>`;
+  const cap = (cx, cy, r) => `<path d="M${cx - r} ${cy - r * .1} Q${cx - r * .95} ${cy - r * 1.05} ${cx} ${cy - r * 1.05} Q${cx + r * .95} ${cy - r * 1.05} ${cx + r} ${cy - r * .1} Q${cx + r * .45} ${cy - r * .62} ${cx} ${cy - r * .6} Q${cx - r * .45} ${cy - r * .62} ${cx - r} ${cy - r * .1}Z" fill="${hair}"/>`;
+  const bow = (cx, cy, r) => gender === 'girl' ? `<circle cx="${cx + r * .62}" cy="${cy - r * .85}" r="${r * .2}" fill="${cd}"/><circle cx="${cx + r * .98}" cy="${cy - r * .72}" r="${r * .2}" fill="${cd}"/><circle cx="${cx + r * .8}" cy="${cy - r * .8}" r="${r * .1}" fill="#fff"/>` : '';
+  const st = stageOf(m);
+  let g = '';
+  if (st === 0) g = `<path d="M26 98 Q26 64 50 64 Q74 64 74 98Z" fill="${cl}"/><path d="M32 78 Q50 70 68 78" stroke="#fff" stroke-width="2.2" fill="none" opacity=".6"/>
+    <circle cx="50" cy="52" r="17" fill="${skin}"/><path d="M42 51 q3 3 6 0M52 51 q3 3 6 0" stroke="${ink}" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+    <circle cx="40" cy="58" r="2.6" fill="#F4A3A3" opacity=".5"/><circle cx="60" cy="58" r="2.6" fill="#F4A3A3" opacity=".5"/><path d="M47 58 q3 2.5 6 0" stroke="${ink}" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+    <path d="M46 36 q4 -6 8 0" stroke="${hair}" stroke-width="2.4" fill="none" stroke-linecap="round"/>`;
+  else if (st === 1) g = `<ellipse cx="50" cy="82" rx="23" ry="17" fill="${cl}"/><circle cx="29" cy="80" r="6" fill="${skin}"/><circle cx="71" cy="80" r="6" fill="${skin}"/><circle cx="40" cy="94" r="6" fill="${skin}"/><circle cx="60" cy="94" r="6" fill="${skin}"/>
+    <circle cx="50" cy="46" r="22" fill="${skin}"/>${face(50, 46, 22)}<path d="M50 25 q-8 -9 2 -11 q8 1 3 9" stroke="${hair}" stroke-width="3" fill="none" stroke-linecap="round"/>${bow(50, 46, 22)}`;
+  else if (st === 2) g = `<rect x="39" y="82" width="8" height="13" rx="4" fill="${skin}"/><rect x="53" y="82" width="8" height="13" rx="4" fill="${skin}"/><rect x="36" y="60" width="28" height="28" rx="10" fill="${cl}"/>
+    <path d="M36 66 L27 80M64 66 L73 80" stroke="${skin}" stroke-width="6" stroke-linecap="round"/><circle cx="50" cy="40" r="20" fill="${skin}"/>${cap(50, 40, 20)}${face(50, 42, 20)}${bow(50, 40, 20)}`;
+  else if (st === 3) g = `<rect x="40" y="80" width="7" height="15" rx="3.5" fill="${skin}"/><rect x="53" y="80" width="7" height="15" rx="3.5" fill="${skin}"/><rect x="38" y="50" width="24" height="33" rx="9" fill="${cl}"/>
+    <path d="M38 56 L29 74M62 56 L71 74" stroke="${skin}" stroke-width="5.5" stroke-linecap="round"/><circle cx="50" cy="32" r="16" fill="${skin}"/>${cap(50, 32, 16)}${face(50, 34, 16)}${bow(50, 32, 16)}`;
+  else g = `<rect x="33" y="48" width="8" height="22" rx="4" fill="${cd}"/><rect x="41" y="76" width="7" height="19" rx="3.5" fill="${skin}"/><rect x="52" y="76" width="7" height="19" rx="3.5" fill="${skin}"/><rect x="39" y="42" width="22" height="38" rx="9" fill="${cl}"/>
+    <path d="M39 48 L31 68M61 48 L69 68" stroke="${skin}" stroke-width="5" stroke-linecap="round"/><path d="M45 44 L45 60M55 44 L55 60" stroke="#fff" stroke-width="2" opacity=".7"/><circle cx="50" cy="27" r="14" fill="${skin}"/>${cap(50, 27, 14)}${face(50, 29, 14)}${bow(50, 27, 14)}`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" aria-hidden="true">${g}</svg>`;
+}
+const avBg = () => S.cfg.gender === 'girl' ? '#FCE9EE' : S.cfg.gender === 'boy' ? '#E4F0F7' : '#E6F3EA';
+function babyAvatar(size = 44) {
+  const photo = S.cfg.avatar && S.cfg.avatarMode === 'photo';
+  return `<span class="bav" style="width:${size}px;height:${size}px;background:${avBg()}">${photo ? `<img src="${S.cfg.avatar}" alt="">` : babyIcon(babyMonths(), S.cfg.gender || '')}</span>`;
+}
+function nextAnniv() {
+  if (!S.cfg.birthday) return '';
+  const b = new Date(S.cfg.birthday + 'T00:00:00'), m = babyMonths() + 1, now = new Date(); now.setHours(0, 0, 0, 0);
+  let t = new Date(b.getFullYear(), b.getMonth() + m, 1); const last = new Date(t.getFullYear(), t.getMonth() + 1, 0).getDate();
+  t.setDate(Math.min(b.getDate(), last));
+  const days = Math.round((t - now) / 864e5);
+  const label = m % 12 === 0 ? `${m / 12} 歲生日` : m < 24 ? `滿 ${m} 個月` : `滿 ${Math.floor(m / 12)} 歲 ${m % 12} 個月`;
+  return days <= 0 ? `今天${label}` : `再 ${days} 天${label}`;
+}
+function babyCard() {
+  if (!S.cfg.birthday) return isAdmin() ? `<div class="bcard">${babyAvatar(56)}<div class="grow"><b>${esc(babyName())}</b><small>設定生日後，這裡會顯示月齡，圖示也會跟著長大。</small></div><button class="btn sm" data-act="babyEdit">設定</button></div>` : '';
+  const m = babyMonths();
+  return `<div class="bcard">${babyAvatar(60)}<div class="grow"><b>${esc(babyName())}${S.cfg.fullName ? `<span class="full">${esc(S.cfg.fullName)}</span>` : ''}</b>
+    <small>今天 ${esc(babyAge(Date.now()))} · ${STAGES[stageOf(m)]}</small><small class="nx">${ic('clock', 14)}${nextAnniv()}</small></div>
+    ${isAdmin() ? `<button class="ibtn" data-act="babyEdit" aria-label="編輯寶寶資料">${ic('edit', 19)}</button>` : ''}</div>`;
+}
+function syncBrand() {
+  document.title = `${babyName()}的相簿`;
+  const l = document.querySelector('link[rel=icon]');
+  if (l && S.cfg.birthday) l.href = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(babyIcon(babyMonths(), S.cfg.gender || ''));
+}
+
+/* 編輯寶寶資料（第一次設定時也用這個） */
+let avTmp = null;
+function openBabyEdit(first = false, after = null) {
+  avTmp = S.cfg.avatar || null; S._after = after;
+  const c = S.cfg, mode = c.avatarMode === 'photo' && c.avatar ? 'photo' : 'growth';
+  const m = openModal(`<h2>${first ? '先認識一下寶寶' : '寶寶資料'}</h2>
+    <p class="hint">${first ? '填好之後，相簿會顯示月齡，寶寶的圖示也會隨著年齡長大。之後都可以在「管理」修改。' : '修改後，所有家人看到的都會更新。'}</p>
+    <div class="av-prev"><div id="avPrev"></div></div>
+    <label class="f" style="margin-top:.4rem">暱稱</label><input id="bName" value="${esc(c.babyName || '')}" placeholder="例如：果果" maxlength="20">
+    <label class="f">全名（選填）</label><input id="bFull" value="${esc(c.fullName || '')}" placeholder="例如：黃小果" maxlength="30">
+    <label class="f">生日</label><input id="bBirth" type="date" value="${esc(c.birthday || '')}" max="${new Date().toISOString().slice(0, 10)}">
+    <label class="f">性別（選填，只用來決定圖示的顏色）</label>
+    <div class="seg" id="bGender">${Object.entries(GENDERS).map(([k, v]) => `<label><input type="radio" name="bg" value="${k}" ${(c.gender || '') === k ? 'checked' : ''}><span>${v}</span></label>`).join('')}</div>
+    <label class="f">頭像</label>
+    <div class="seg" id="avMode"><label><input type="radio" name="avm" value="growth" ${mode === 'growth' ? 'checked' : ''}><span>成長小圖示</span></label><label><input type="radio" name="avm" value="photo" ${mode === 'photo' ? 'checked' : ''}><span>用照片</span></label></div>
+    <div id="avPhotoBox" style="margin-top:.5rem;${mode === 'photo' ? '' : 'display:none'}"><input type="file" id="avFile" accept="image/*"><p class="hint">會自動裁成正方形並縮小，不含位置資訊。</p></div>
+    <div class="row" style="margin-top:1.1rem;justify-content:flex-end"><button class="btn ghost" data-act="babyCancel">${first ? '稍後再設定' : '取消'}</button><button class="btn" data-act="saveBaby" data-first="${first ? 1 : ''}">${first ? '儲存，繼續' : '儲存'}</button></div>`);
+  m.dataset.lock = '1'; refreshAvPrev();
+}
+function refreshAvPrev() {
+  const box = $('#avPrev'); if (!box) return;
+  const bd = $('#bBirth').value, g = document.querySelector('input[name=bg]:checked')?.value || '', mode = document.querySelector('input[name=avm]:checked')?.value;
+  const mo = bd ? babyMonths(Date.now(), bd) : 6, bg = g === 'girl' ? '#FCE9EE' : g === 'boy' ? '#E4F0F7' : '#E6F3EA';
+  box.innerHTML = `<span class="bav" style="width:96px;height:96px;background:${bg}">${mode === 'photo' && avTmp ? `<img src="${avTmp}" alt="">` : babyIcon(mo, g)}</span>
+    <small class="hint">${bd ? `${STAGES[stageOf(mo)]}的樣子` : '填生日後會依年齡變化'}</small>`;
+  $('#avPhotoBox').style.display = mode === 'photo' ? '' : 'none';
+}
+async function cropAvatar(file) {
+  const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' }).catch(() => null);
+  if (!bmp) throw new Error('bad');
+  const s = Math.min(bmp.width, bmp.height), cv = document.createElement('canvas'); cv.width = cv.height = 192;
+  cv.getContext('2d').drawImage(bmp, (bmp.width - s) / 2, (bmp.height - s) / 2, s, s, 0, 0, 192, 192);
+  return cv.toDataURL('image/jpeg', 0.82);
+}
+
+/* 導覽 */
+function tourSlides() {
+  const n = babyName(), adm = isAdmin(), fam = S.me.role === 'family';
+  const s = [
+    { icon: 'baby', av: true, h: `歡迎來到${n}的相簿`, p: '這是只屬於家人的私人相簿。花半分鐘看看怎麼用。' },
+    { icon: 'calendar', h: '照片依月份整理', p: `每個月都會標示${n}幾個月大，往下滑就能看著${n}一路長大。` },
+    { icon: 'heart', h: '按讚、留言、分享', p: '點開照片就能按讚或留言，在照片上點兩下也可以按讚。想讓其他人看，可以直接傳到 LINE。' },
+    { icon: 'bell', h: '近況與回憶', p: '右上角的鈴鐺會告訴你家人上傳了什麼。時間軸最上面的「回憶」，會翻出 N 個月前的今天。' },
+    { icon: 'shield', h: '隱私有保障', p: adm ? '每本相簿都能設定誰看得到。隱藏的照片只有你看得到，家人要先邀請才能登入。上傳時會自動移除照片裡的 GPS 位置。' : '只有被爸媽邀請的家人看得到，外人只會看到登入畫面。照片上傳時已移除 GPS 位置資訊。' },
+  ];
+  if (adm) s.push({ icon: 'users', h: '開始使用', p: '先建立相簿，再邀請爺爺奶奶和其他家人。邀請時可以決定每個人能看哪些相簿、能不能上傳或下載。', btns: [['新增相簿', 'tourAlbum'], ['邀請家人', 'tourInvite']] });
+  else if (fam) s.push({ icon: 'plus', h: '你也可以上傳', p: '按畫面下方中間的加號，選照片或影片就能上傳。只能上傳到爸媽開放的相簿。' });
+  else s.push({ icon: 'home', h: '加到主畫面更方便', p: '用手機瀏覽器的選單選「加入主畫面」，以後點一下圖示就能看。' });
+  return s;
+}
+function startTour(i = 0) {
+  $('#tour')?.remove();
+  const sl = tourSlides(); S.tour = { i, n: sl.length };
+  const s = sl[i], last = i === sl.length - 1;
+  const d = document.createElement('div'); d.className = 'tour'; d.id = 'tour';
+  d.innerHTML = `<div class="stage"><div class="big-ic">${s.av ? babyAvatar(120) : ic(s.icon, 54)}</div><h2>${esc(s.h)}</h2><p>${esc(s.p)}</p>
+      ${s.btns ? `<div class="row" style="justify-content:center;margin-top:.8rem">${s.btns.map(([t, a]) => `<button class="btn ghost" data-act="${a}">${t}</button>`).join('')}</div>` : ''}</div>
+    <div class="foot"><button class="skip" data-act="tourEnd">${last ? '' : '略過'}</button><div class="dots">${sl.map((_, k) => `<i class="${k === i ? 'on' : ''}"></i>`).join('')}</div>
+      <button class="btn" data-act="${last ? 'tourEnd' : 'tourNext'}">${last ? '開始使用' : '下一步'}</button></div>`;
+  document.body.appendChild(d);
+}
+function endTour() { $('#tour')?.remove(); LS.set('tour:' + S.me.email, 1); }
+function maybeOnboard() {
+  const needSetup = isAdmin() && !S.cfg.setupDone && !S.cfg.birthday && !S.cfg.babyName;
+  const tourDone = LS.get('tour:' + S.me.email, false);
+  if (needSetup) return openBabyEdit(true, () => startTour());
+  if (!tourDone) startTour();
 }
 
 /* ---------- 縮圖延遲載入 ---------- */
@@ -1112,8 +1268,21 @@ const ACT = {
   purge: async el => { const p = keyP(el.dataset.key); if (!confirm('永久刪除後無法復原，確定嗎？')) return;
     try { await S.be.deleteForever(p); S.photos = S.photos.filter(x => x !== p); logAct('永久刪除了 1 個檔案'); render(); } catch { toast('刪除失敗'); } },
   adminView: el => { S.adminView = el.dataset.v || null; render(); scrollTo(0, 0); if (S.adminView === 'log') showLog(); },
-  saveCfg: async () => { const c = { babyName: $('#cfgName').value.trim(), birthday: $('#cfgBirth').value, showPresence: $('#cfgPresence').checked };
-    try { await S.be.setConfig(c); Object.assign(S.cfg, c); render(); toast('已儲存'); } catch { toast('儲存失敗'); } },
+  babyEdit: () => openBabyEdit(false),
+  babyCancel: () => { closeModal(); const f = S._after; S._after = null; f && f(); },
+  saveBaby: async el => {
+    const name = $('#bName').value.trim(); if (!name) return toast('請輸入暱稱');
+    const mode = document.querySelector('input[name=avm]:checked').value;
+    if (mode === 'photo' && !avTmp) return toast('請選一張頭像照片');
+    const c = { babyName: name, fullName: $('#bFull').value.trim(), birthday: $('#bBirth').value, gender: document.querySelector('input[name=bg]:checked').value,
+      avatarMode: mode, avatar: mode === 'photo' ? avTmp : (S.cfg.avatar || ''), setupDone: true };
+    try { await S.be.setConfig(c); Object.assign(S.cfg, c); logAct('更新了寶寶資料'); closeModal(); const f = S._after; S._after = null; render(); toast('已儲存'); f && f(); }
+    catch (e) { toast('儲存失敗：' + (e.code || '')); } },
+  tourNext: () => startTour(S.tour.i + 1),
+  tourEnd: () => endTour(),
+  replayTour: () => startTour(0),
+  tourAlbum: () => { endTour(); S.tab = 'albums'; render(); openEditAlbum(); },
+  tourInvite: () => { endTour(); S.tab = 'me'; S.adminView = null; render(); ACT.editMember({ dataset: {} }); },
   editAlbum: el => openEditAlbum(el.dataset.id),
   saveAlbum: async el => {
     const name = $('#alName').value.trim(); if (!name) return toast('請輸入相簿名稱');
@@ -1144,6 +1313,9 @@ document.addEventListener('change', e => {
   const el = e.target;
   if (el.id === 'msSel') { $('#msCustom').style.display = el.value === '__c' ? '' : 'none'; return; }
   if (el.id === 'mRole') { $('#mRoleHint').textContent = ROLES[el.value].can; return; }
+  if (el.dataset.change === 'presence') { const v = el.checked; S.be.setConfig({ showPresence: v }).then(() => { S.cfg.showPresence = v; toast('已儲存'); }).catch(() => { el.checked = !v; toast('儲存失敗'); }); return; }
+  if (el.id === 'bBirth' || el.name === 'bg' || el.name === 'avm') { refreshAvPrev(); return; }
+  if (el.id === 'avFile') { const f = el.files[0]; if (f) cropAvatar(f).then(u => { avTmp = u; refreshAvPrev(); }).catch(() => toast('這張圖片讀不了，換一張試試')); return; }
   if (el.dataset.change === 'bigText') { document.documentElement.classList.toggle('big', el.checked); LS.set('bigText', el.checked); return; }
   if (el.dataset.change === 'demoUser') { S.be.setUser(el.value); S.tab = 'timeline'; S.albumId = null; S.adminView = null; loadAll(true).then(() => toast(`現在以「${memberName(el.value)}」的身分預覽`)); }
 });
