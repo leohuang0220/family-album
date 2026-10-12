@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>寶寶家庭相簿</title>
-<link rel="manifest" href="manifest.json">
-<link rel="icon" href="icon.svg">
-<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="manifest" href="app.webmanifest">
+<link rel="icon" href="b-icon.svg">
+<link rel="apple-touch-icon" href="b-icon-192.png">
 <meta name="theme-color" content="#F6F9FB">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -296,10 +296,20 @@ async function exifDate(file) {
   } catch {}
   return null;
 }
+// 部分 Android（OPPO/realme 等）和 iPhone 的照片是 HEIC，瀏覽器讀不了 → 先轉成 JPEG
+const isHeic = f => /heic|heif/i.test(f.type || '') || /\.(heic|heif)$/i.test(f.name || '');
+let heicLib = null;
+async function heicToJpeg(file) {
+  if (!heicLib) heicLib = new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = 'https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js'; sc.onload = () => res(window.heic2any); sc.onerror = () => { heicLib = null; rej(new Error('load')); }; document.head.appendChild(sc); });
+  const conv = await heicLib, out = await conv({ blob: file, toType: 'image/jpeg', quality: 0.92 });
+  const b = Array.isArray(out) ? out[0] : out;
+  return new File([b], (file.name || 'photo').replace(/\.(heic|heif)$/i, '') + '.jpg', { type: 'image/jpeg', lastModified: file.lastModified });
+}
 async function loadImg(file) {
-  const url = URL.createObjectURL(file); const img = new Image(); img.src = url;
-  try { await img.decode(); } catch { URL.revokeObjectURL(url); throw new Error('這個格式無法讀取（iPhone 的 HEIC 請在相簿選取時讓手機自動轉檔）'); }
-  return img;
+  const tryDecode = async f => { const url = URL.createObjectURL(f); const img = new Image(); img.src = url; await img.decode(); return img; };
+  try { return await tryDecode(file); } catch {}
+  try { return await tryDecode(await heicToJpeg(file)); } catch {}
+  throw new Error('這張照片的格式讀不了，請換一張或先在手機轉成 JPG');
 }
 function resize(src, w, h, max, q) {
   const s = Math.min(1, max / Math.max(w, h)); const c = document.createElement('canvas');
@@ -928,8 +938,8 @@ function refreshAvPrev() {
   $('#avPhotoBox').style.display = mode === 'photo' ? '' : 'none';
 }
 async function cropAvatar(file) {
-  const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' }).catch(() => null);
-  if (!bmp) throw new Error('bad');
+  let bmp = await createImageBitmap(file, { imageOrientation: 'from-image' }).catch(() => null);
+  if (!bmp) bmp = await loadImg(file).then(i => { i.width = i.naturalWidth; i.height = i.naturalHeight; return i; });
   const s = Math.min(bmp.width, bmp.height), cv = document.createElement('canvas'); cv.width = cv.height = 192;
   cv.getContext('2d').drawImage(bmp, (bmp.width - s) / 2, (bmp.height - s) / 2, s, s, 0, 0, 192, 192);
   return cv.toDataURL('image/jpeg', 0.82);
