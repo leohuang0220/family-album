@@ -478,9 +478,9 @@ function makeGAS(url, clientId) {
       const per = which === 'disp' ? 4 : 12;   // 分小批同時送，第一批更快出現
       for (let i = 0; i < list.length; i += per) {
         const part = list.slice(i, i + per);
-        call('media', { ids: part.map(([k]) => k.split('|')[1]), which }).then(res => {
+        call('media', { ids: part.map(([k]) => k.split('|')[1].split('@')[0]), which }).then(res => {
           for (const [k, e] of part) {
-            const b = res[k.split('|')[1]];
+            const b = res[k.split('|')[1].split('@')[0]];
             if (b) { const blob = b64ToBlob(b, 'image/jpeg'), u = URL.createObjectURL(blob); cache.set(k, u); diskPut(k, blob); e.res(u); } else e.rej(mkErr('NO_MEDIA'));
           }
         }).catch(err => part.forEach(([, e]) => e.rej(err)));
@@ -492,7 +492,7 @@ function makeGAS(url, clientId) {
   const diskGet = async k => { try { const c = await caches.open(MC), r = await c.match(mkey(k)); return r ? await r.blob() : null; } catch { return null; } };
   const diskPut = (k, blob) => { try { caches.open(MC).then(c => c.put(mkey(k), new Response(blob, { headers: { 'Content-Type': 'image/jpeg' } }))).catch(() => {}); } catch {} };
   function media(p, which) {
-    const k = which + '|' + p.id;
+    const k = which + '|' + p.id + (which === 'thumb' && p.tv ? '@' + p.tv : '');
     if (cache.has(k)) return Promise.resolve(cache.get(k));
     if (inflight.has(k)) return inflight.get(k);
     const pr = diskGet(k).then(b => {
@@ -501,7 +501,7 @@ function makeGAS(url, clientId) {
     }).finally(() => inflight.delete(k));
     inflight.set(k, pr); return pr;
   }
-  function seed(id, which, blob) { const k = which + '|' + id; cache.set(k, URL.createObjectURL(blob)); diskPut(k, blob); }
+  function seed(id, which, blob, tv) { const k = which + '|' + id + (which === 'thumb' && tv ? '@' + tv : ''); cache.set(k, URL.createObjectURL(blob)); diskPut(k, blob); }
   // 原檔（影片、下載原圖）分段取回
   async function original(p, onProg) {
     const k = 'full|' + p.id;
@@ -558,7 +558,8 @@ function makeGAS(url, clientId) {
     },
     getMediaURL(p, which, onProg) { if (p._url) return Promise.resolve(p._url[which] || p._url.disp || p._url.thumb); return which === 'full' ? original(p, onProg) : media(p, which); },
     updatePhoto(p, patch) { return call('updatePhoto', { id: p.id, patch }); },
-    async setThumb(p, blob, ph) { const r = await call('setThumb', { id: p.id, b64: await toB64(blob), ph }); seed(p.id, 'thumb', blob); return r; },
+    async setThumb(p, blob, ph) { const r = await call('setThumb', { id: p.id, b64: await toB64(blob), ph }); seed(p.id, 'thumb', blob, r.tv); return r; },
+    fixVideoThumbs() { return call('fixVideoThumbs'); },
     toggleLike(p, email, on) { return call('like', { id: p.id, on }); },
     listComments(p) { return call('comments', { id: p.id }); },
     addComment(p, c) { return call('addComment', { id: p.id, text: c.text }); },
@@ -647,6 +648,7 @@ function makeDemo() {
     },
     async getMediaURL(p, which) { const src = photos.find(x => x.id === p.id); if (!src) throw new Error('gone'); return src._url[which] || src._url.disp || src._url.full || src._url.thumb; },
     async updatePhoto(p, patch) { Object.assign(photos.find(x => x.id === p.id), patch); },
+    async fixVideoThumbs() { return { fixed: 0, left: 0, photos: [] }; },
     async setThumb(p, blob, ph) { const x = photos.find(y => y.id === p.id); x._url.thumb = URL.createObjectURL(blob); x.ph = ph; x.thumbOk = true; return { ...x }; },
     async toggleLike(p, email, on) { const x = photos.find(y => y.id === p.id); x.likes = on ? [...new Set([...x.likes, email])] : x.likes.filter(e => e !== email); },
     async listComments(p) { return clone(comments[p.albumId + '/' + p.id] || []); },
@@ -740,6 +742,7 @@ async function loadAll(keepView) {
     if (S.albumId && !albumById(S.albumId)) S.albumId = null;
     render();
     if (!openDeepLink() && !keepView) maybeOnboard();
+    autoFixVideoThumbs();
   } catch (e) {
     console.error(e);
     S.me = null;
@@ -1228,6 +1231,17 @@ function openLB(key, listName) {
   if (i < 0) return;
   S.lb = { list, i, listName }; drawLB();
 }
+// 管理者打開 App 時，背景把舊影片的縮圖補好（用雲端硬碟自己做的影片縮圖）
+async function autoFixVideoThumbs() {
+  if (S._vfix || !isAdmin() || !S.be.fixVideoThumbs || !S.photos.some(p => p.kind === 'video' && !p.thumbOk && !p._local)) return;
+  S._vfix = true;
+  for (let round = 0; round < 15; round++) {
+    let r; try { r = await S.be.fixVideoThumbs(); } catch (e) { console.warn('fixVideoThumbs', e); break; }
+    (r.photos || []).forEach(q => { const p = S.photos.find(x => x.id === q.id); if (p) Object.assign(p, { thumbOk: true, tv: q.tv, ph: '' }); });
+    if (r.fixed) { softRender(); toast(`已補上 ${r.fixed} 支影片的縮圖`); }
+    if (!r.left || !r.fixed) break;
+  }
+}
 // 舊影片當初沒抓到畫面：管理者或上傳者打開播放時，自動補一張真正的縮圖
 async function fixVideoThumb(p, url) {
   if (p.thumbOk || p._fixing || !(isAdmin() || p.uploader === S.me.email)) return;
@@ -1235,7 +1249,7 @@ async function fixVideoThumb(p, url) {
   try {
     const f = await grabFrame(url);
     const r = await S.be.setThumb(p, f.blob, f.ph);
-    Object.assign(p, { ph: r.ph || f.ph, thumbOk: true });
+    Object.assign(p, { ph: r.ph || f.ph, thumbOk: true, tv: r.tv });
     document.querySelectorAll(`img[data-media="${p.albumId}/${p.id}/thumb"]`).forEach(i => { i.src = URL.createObjectURL(f.blob); });
   } catch (e) { console.warn('thumb fix', e); } finally { p._fixing = false; }
 }
