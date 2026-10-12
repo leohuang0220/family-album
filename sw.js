@@ -1,5 +1,5 @@
 // 只快取 App 外殼；照片不存進快取，避免留在共用裝置上
-const C = 'family-album-v5';
+const C = 'baby-album-v1';
 const SHELL = ['./', './index.html', './b-icon.svg', './b-icon-192.png', './b-icon-512.png', './b-icon-maskable-512.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(C).then(c => c.addAll(SHELL))); self.skipWaiting(); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== C).map(k => caches.delete(k))))); self.clients.claim(); });

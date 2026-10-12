@@ -1,10 +1,10 @@
 {
-  "id": "/family-album/?app=baby-album-2",
+  "id": "./?app=baby-album",
   "name": "寶寶家庭相簿",
   "short_name": "家庭相簿",
   "description": "只給家人看的寶寶相簿",
-  "start_url": "/family-album/?src=app2",
-  "scope": "/family-album/",
+  "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#F6F9FB",
