@@ -1,9 +1,9 @@
 {
-  "id": "/family-album/",
+  "id": "/family-album/?app=baby-album-2",
   "name": "寶寶家庭相簿",
   "short_name": "家庭相簿",
   "description": "只給家人看的寶寶相簿",
-  "start_url": "/family-album/",
+  "start_url": "/family-album/?src=app2",
   "scope": "/family-album/",
   "display": "standalone",
   "orientation": "portrait",
