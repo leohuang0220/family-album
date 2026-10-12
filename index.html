@@ -1,0 +1,975 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>寶寶家庭相簿</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#ffb4a2">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<script src="https://accounts.google.com/gsi/client" async></script>
+<style>
+:root{
+  --bg:#fff8f3;--card:#ffffff;--ink:#4a3b36;--sub:#9a8680;--line:#f1e3dc;
+  --pink:#ff8fa3;--peach:#ffb4a2;--mint:#8fd3c1;--sky:#9cc9f5;--sun:#ffd58a;--lav:#c9b6f2;
+  --danger:#e5646e;--r:18px;--shadow:0 4px 16px rgba(160,110,90,.12);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{font-size:16px}
+html.big{font-size:20px}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"PingFang TC","Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.5}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none}
+.btn{white-space:nowrap;background:var(--pink);color:#fff;border-radius:999px;padding:.65rem 1.2rem;font-weight:700;box-shadow:var(--shadow)}
+.btn.ghost{background:#fff;color:var(--ink);border:1.5px solid var(--line);box-shadow:none}
+.btn.danger{background:var(--danger)}
+.btn.sm{padding:.4rem .8rem;font-size:.85rem}
+.btn:disabled{opacity:.5}
+input,select,textarea{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:.6rem .75rem;background:#fff}
+textarea{min-height:4.5rem;resize:vertical}
+label.f{display:block;margin:.7rem 0 .25rem;font-weight:700;font-size:.9rem}
+.hint{color:var(--sub);font-size:.82rem}
+.row{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
+.sp{flex:1}
+.chk{display:flex;gap:.5rem;align-items:center;margin:.35rem 0}
+.chk input{width:auto;transform:scale(1.25)}
+
+header.top{position:sticky;top:0;z-index:20;background:rgba(255,248,243,.92);backdrop-filter:blur(10px);padding:calc(.6rem + env(safe-area-inset-top)) 1rem .6rem;display:flex;align-items:center;gap:.6rem;border-bottom:1px solid var(--line)}
+header.top h1{font-size:1.15rem;margin:0}
+header.top .age{font-size:.8rem;color:var(--sub)}
+.demo{background:var(--sun);border-radius:999px;padding:.15rem .55rem;font-size:.75rem;font-weight:700}
+.demo-sel{width:auto;padding:.3rem .5rem;font-size:.8rem}
+main{padding:1rem 1rem calc(6rem + env(safe-area-inset-bottom));max-width:960px;margin:0 auto}
+
+nav.bottom{position:fixed;bottom:0;left:0;right:0;z-index:20;background:#fff;border-top:1px solid var(--line);display:flex;justify-content:space-around;align-items:flex-end;padding:.35rem 0 calc(.35rem + env(safe-area-inset-bottom))}
+nav.bottom button{display:flex;flex-direction:column;align-items:center;font-size:.72rem;color:var(--sub);min-width:3.6rem;padding:.2rem}
+nav.bottom button .i{font-size:1.35rem;line-height:1.3}
+nav.bottom button.on{color:var(--pink);font-weight:700}
+nav.bottom .fab{width:3.6rem;height:3.6rem;border-radius:50%;background:linear-gradient(135deg,var(--pink),var(--peach));color:#fff;font-size:2rem;line-height:1;justify-content:center;box-shadow:0 6px 18px rgba(255,143,163,.45);transform:translateY(-.9rem)}
+
+.chip{display:inline-flex;align-items:center;gap:.3rem;background:#fff;border:1.5px solid var(--line);border-radius:999px;padding:.25rem .7rem;font-size:.85rem}
+.month{margin:1.2rem 0 .5rem;display:flex;align-items:baseline;gap:.5rem}
+.month b{font-size:1.05rem}
+.month span{color:var(--sub);font-size:.85rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(105px,1fr));gap:4px}
+html.big .grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}
+.tile{position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;background:linear-gradient(135deg,#fde7df,#fbeff7);padding:0}
+.tile img{width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .3s;display:block}
+.tile img.ok{opacity:1}
+.tile .b{position:absolute;font-size:.7rem;font-weight:700;border-radius:999px;padding:.05rem .4rem;color:#fff}
+.tile .new{top:4px;left:4px;background:var(--pink)}
+.tile .vid{bottom:4px;right:4px;background:rgba(0,0,0,.5)}
+.tile .ms{top:4px;right:4px;background:var(--sun);color:var(--ink)}
+.tile .hid{bottom:4px;left:4px;background:#666}
+.tile.err::after{content:"無法載入";position:absolute;inset:0;display:grid;place-items:center;font-size:.75rem;color:var(--sub)}
+
+.card{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);padding:1rem;margin-bottom:1rem}
+.card h3{margin:0 0 .5rem;font-size:1.05rem}
+.albums{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.8rem}
+.album{background:#fff;border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow);text-align:left;padding:0;position:relative}
+.album .cv{aspect-ratio:4/3;background:linear-gradient(135deg,#ffe3d8,#e8f3ff);display:grid;place-items:center;font-size:2.2rem;overflow:hidden}
+.album .cv img{width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .3s}
+.album .cv img.ok{opacity:1}
+.album .meta{padding:.55rem .7rem}
+.album .meta b{display:block}
+.album .meta small{color:var(--sub)}
+.album .edit{position:absolute;top:.4rem;right:.4rem;background:rgba(255,255,255,.9);border-radius:999px;padding:.2rem .55rem;font-size:.8rem}
+.vis{font-size:.75rem;border-radius:999px;padding:.05rem .45rem;background:#f4eee9}
+.empty{text-align:center;color:var(--sub);padding:3rem 1rem}
+.empty .e{font-size:3rem}
+
+.ms-list .it{display:flex;gap:.8rem;align-items:center;background:#fff;border-radius:var(--r);padding:.6rem;margin-bottom:.6rem;box-shadow:var(--shadow);width:100%;text-align:left}
+.ms-list .th{width:72px;height:72px;border-radius:12px;overflow:hidden;flex:none;background:#fde7df}
+.ms-list .th img{width:100%;height:100%;object-fit:cover;opacity:0}
+.ms-list .th img.ok{opacity:1}
+.ms-list b{display:block}
+.ms-list small{color:var(--sub)}
+
+.mem{display:flex;gap:.7rem;align-items:center;padding:.6rem 0;border-bottom:1px solid var(--line)}
+.mem:last-child{border:0}
+.av{width:2.6rem;height:2.6rem;border-radius:50%;display:grid;place-items:center;font-weight:700;color:#fff;flex:none}
+.mem .info{flex:1;min-width:0}
+.mem .info small{display:block;color:var(--sub);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.role{font-size:.72rem;border-radius:999px;padding:.05rem .45rem;color:#fff}
+.role.admin{background:var(--pink)}.role.family{background:var(--mint)}.role.viewer{background:var(--sky)}
+.log{font-size:.88rem;padding:.35rem 0;border-bottom:1px dashed var(--line)}
+.log small{color:var(--sub);margin-right:.4rem}
+.mini-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:.5rem}
+.mini-grid .m{background:#fff;border-radius:10px;overflow:hidden;font-size:.75rem;box-shadow:var(--shadow)}
+.mini-grid .m .tile{border-radius:0}
+.mini-grid .m .acts{display:flex;flex-direction:column;gap:2px;padding:4px}
+
+.modal{position:fixed;inset:0;z-index:50;background:rgba(60,40,35,.45);display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--bg);width:100%;max-width:560px;max-height:92vh;overflow:auto;border-radius:22px 22px 0 0;padding:1.1rem 1.1rem calc(1.2rem + env(safe-area-inset-bottom))}
+@media(min-width:700px){.modal{align-items:center}.sheet{border-radius:22px}}
+.sheet h2{margin:0 0 .3rem;font-size:1.2rem}
+.prog .p{display:flex;justify-content:space-between;font-size:.85rem;padding:.25rem 0;border-bottom:1px dashed var(--line)}
+
+.lb{position:fixed;inset:0;z-index:60;background:#1b1514;color:#fff;display:flex;flex-direction:column}
+.lb-top{display:flex;align-items:center;gap:.5rem;padding:calc(.5rem + env(safe-area-inset-top)) .7rem .5rem}
+.lb-top button{color:#fff;font-size:1.3rem;padding:.3rem .5rem}
+.lb-top .d{font-size:.85rem;opacity:.85}
+.lb-stage{position:relative;flex:1;min-height:40vh;display:grid;place-items:center;overflow:hidden;touch-action:pan-y}
+.lb-stage img,.lb-stage video{max-width:100%;max-height:100%;object-fit:contain}
+.nocopy img{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;-webkit-user-drag:none}
+.lb-stage .nav{position:absolute;top:50%;transform:translateY(-50%);color:#fff;font-size:2.2rem;background:rgba(0,0,0,.25);border-radius:50%;width:2.8rem;height:2.8rem;line-height:1}
+.lb-prog{position:absolute;bottom:1rem;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.55);color:#fff;border-radius:999px;padding:.3rem .8rem;font-size:.85rem}
+.lb-stage .prev{left:.4rem}.lb-stage .next{right:.4rem}
+.lb-info{background:var(--bg);color:var(--ink);border-radius:20px 20px 0 0;padding:.9rem 1rem calc(1rem + env(safe-area-inset-bottom));max-height:45vh;overflow:auto}
+.lb-acts{display:flex;gap:.5rem;flex-wrap:wrap;margin:.5rem 0}
+.like.on{background:#ffe1e7;border-color:var(--pink)}
+.cmt{padding:.4rem 0;border-bottom:1px dashed var(--line);font-size:.92rem}
+.cmt small{color:var(--sub)}
+.toast{position:fixed;left:50%;bottom:calc(6rem + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:#fff;padding:.6rem 1rem;border-radius:999px;z-index:99;font-size:.9rem;box-shadow:var(--shadow);max-width:90vw;text-align:center}
+
+.center{min-height:100vh;display:grid;place-items:center;padding:1.5rem}
+.login{max-width:420px;text-align:center}
+.login .logo{font-size:4rem}
+.login h1{margin:.3rem 0}
+.spin{width:2.4rem;height:2.4rem;border:4px solid var(--line);border-top-color:var(--pink);border-radius:50%;animation:s 1s linear infinite;margin:auto}
+@keyframes s{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div id="app"><div class="center"><div class="spin"></div></div></div>
+
+<script type="module">
+/* =====================================================================
+   ① 設定區：部署前只需要改這兩個地方（詳見「設定教學.md」）
+   ===================================================================== */
+
+// Apps Script「部署 → 網頁應用程式」的網址。保持空字串 = 示範模式（不連線，可先試玩）
+const API_URL = '';
+// Google Cloud「OAuth 用戶端 ID」（和 Code.gs 裡的 CLIENT_ID 一樣）
+const GOOGLE_CLIENT_ID = '';
+
+/* ===================================================================== */
+
+const ROLES = {
+  admin:  { label: '管理者（爸媽）', short: '管理者', can: '看全部相簿、上傳、管理家人與權限、回收桶、動態紀錄' },
+  family: { label: '家人（可上傳）', short: '可上傳', can: '看開放的相簿、上傳到允許上傳的相簿、按愛心、留言' },
+  viewer: { label: '只能看', short: '只能看', can: '看開放的相簿、按愛心、留言' },
+};
+const VIS = {
+  everyone: { icon: '🌏', label: '所有家人' },
+  family:   { icon: '🏠', label: '核心家人（管理者＋可上傳的家人）' },
+  parents:  { icon: '🔒', label: '只有爸媽' },
+};
+const RELATIONS = ['爺爺','奶奶','阿公','阿嬤','外公','外婆','叔叔','伯伯','姑姑','舅舅','阿姨','嬸嬸','哥哥','姊姊','保母','其他'];
+const MILESTONES = ['滿月','收涎','百日','第一次笑','第一次翻身','第一次坐','第一次爬','第一顆牙','第一次吃副食品','第一次站','第一次走路','第一次叫爸爸','第一次叫媽媽','第一次剪頭髮','第一次出遊','周歲抓周','生日'];
+const MAX_VIDEO = 200 * 1024 * 1024;
+
+/* ---------- 小工具 ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad = n => String(n).padStart(2, '0');
+const fmtDate = t => { const d = new Date(t); return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())}`; };
+const fmtTime = t => { const d = new Date(t); return `${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+const ago = t => { if (!t) return '還沒登入過'; const m = (Date.now()-t)/6e4; if (m<60) return '剛剛上線'; if (m<1440) return `${Math.floor(m/60)} 小時前上線`; return `${Math.floor(m/1440)} 天前上線`; };
+const fmtBytes = b => b > 1e9 ? (b/1e9).toFixed(2)+' GB' : (b/1e6).toFixed(1)+' MB';
+const LS = { get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+             set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
+const AV_COLORS = ['#ff8fa3','#8fd3c1','#9cc9f5','#ffb86b','#c9b6f2','#7fc8a9'];
+const avColor = s => AV_COLORS[[...s].reduce((a,c)=>a+c.charCodeAt(0),0) % AV_COLORS.length];
+function toast(msg, ms = 2600) { const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), ms); }
+
+function canSee(a, me) {
+  return me.role === 'admin' || a.visibility === 'everyone' || (a.visibility === 'family' && me.role === 'family') || (a.allowed || []).includes(me.email);
+}
+function canUploadTo(a, me) { return me.role === 'admin' || (me.role === 'family' && a.allowUpload && canSee(a, me)); }
+
+function babyAge(ts) {
+  if (!S.cfg.birthday) return '';
+  const b = new Date(S.cfg.birthday + 'T00:00:00'), d = new Date(ts);
+  if (d < b) return '出生前';
+  const days = Math.floor((d - b) / 864e5);
+  let m = (d.getFullYear()-b.getFullYear())*12 + d.getMonth() - b.getMonth(), day = d.getDate() - b.getDate();
+  if (day < 0) { m--; day += new Date(d.getFullYear(), d.getMonth(), 0).getDate(); }
+  if (m < 1) return `出生第 ${days+1} 天`;
+  const y = Math.floor(m/12), mm = m % 12;
+  return (y ? `${y} 歲` : '') + (mm ? `${mm} 個月` : '') + (day ? `${day} 天` : '');
+}
+
+/* ---------- 照片處理（壓縮＋自動去除 GPS 等 EXIF 隱私資訊） ---------- */
+async function exifDate(file) {
+  try {
+    const v = new DataView(await file.slice(0, 256 * 1024).arrayBuffer());
+    if (v.getUint16(0) !== 0xFFD8) return null;
+    let o = 2;
+    while (o < v.byteLength - 4) {
+      const mk = v.getUint16(o), len = v.getUint16(o + 2);
+      if (mk === 0xFFE1 && v.getUint32(o + 4) === 0x45786966) {
+        const t = o + 10, le = v.getUint16(t) === 0x4949;
+        const g16 = p => v.getUint16(p, le), g32 = p => v.getUint32(p, le);
+        const find = (ifd, tag) => { const n = g16(t + ifd); for (let i = 0; i < n; i++) { const e = t + ifd + 2 + i * 12; if (g16(e) === tag) return e; } return -1; };
+        const ifd0 = g32(t + 4);
+        let ent = -1;
+        const ex = find(ifd0, 0x8769);
+        if (ex >= 0) ent = find(g32(ex + 8), 0x9003);
+        if (ent < 0) ent = find(ifd0, 0x0132);
+        if (ent < 0) return null;
+        const off = t + g32(ent + 8); let s = '';
+        for (let i = 0; i < 19; i++) s += String.fromCharCode(v.getUint8(off + i));
+        const m = s.match(/(\d{4}):(\d\d):(\d\d) (\d\d):(\d\d):(\d\d)/);
+        return m ? new Date(+m[1], m[2]-1, +m[3], +m[4], +m[5], +m[6]).getTime() : null;
+      }
+      if ((mk & 0xFF00) !== 0xFF00) break;
+      o += 2 + len;
+    }
+  } catch {}
+  return null;
+}
+async function loadImg(file) {
+  const url = URL.createObjectURL(file); const img = new Image(); img.src = url;
+  try { await img.decode(); } catch { URL.revokeObjectURL(url); throw new Error('這個格式無法讀取（iPhone 的 HEIC 請在相簿選取時讓手機自動轉檔）'); }
+  return img;
+}
+function resize(src, w, h, max, q) {
+  const s = Math.min(1, max / Math.max(w, h)); const c = document.createElement('canvas');
+  c.width = Math.round(w * s); c.height = Math.round(h * s);
+  c.getContext('2d').drawImage(src, 0, 0, c.width, c.height);
+  return new Promise(r => c.toBlob(r, 'image/jpeg', q));
+}
+async function videoPoster(file) {
+  const url = URL.createObjectURL(file); const v = document.createElement('video');
+  v.muted = true; v.playsInline = true; v.preload = 'auto'; v.src = url;
+  try {
+    await Promise.race([new Promise((ok, no) => { v.onloadedmetadata = ok; v.onerror = no; }), new Promise((_, no) => setTimeout(no, 8000))]);
+    v.currentTime = Math.min(1, (v.duration || 0) / 2);
+    await Promise.race([new Promise(ok => v.onseeked = ok), new Promise((_, no) => setTimeout(no, 8000))]);
+    const poster = await resize(v, v.videoWidth, v.videoHeight, 480, .8);
+    return { poster, w: v.videoWidth, h: v.videoHeight, duration: Math.round(v.duration || 0) };
+  } catch {
+    const c = document.createElement('canvas'); c.width = c.height = 480; const g = c.getContext('2d');
+    g.fillStyle = '#f6d6cc'; g.fillRect(0, 0, 480, 480); g.fillStyle = '#fff'; g.font = '160px sans-serif'; g.textAlign = 'center'; g.fillText('▶', 240, 300);
+    return { poster: await new Promise(r => c.toBlob(r, 'image/jpeg', .8)), w: 0, h: 0, duration: 0 };
+  } finally { URL.revokeObjectURL(url); }
+}
+async function prepareFile(file) {
+  if (file.type.startsWith('video/')) {
+    if (file.size > MAX_VIDEO) throw new Error('影片超過 200MB，請先剪短');
+    const { poster, w, h, duration } = await videoPoster(file);
+    const ext = (file.name.split('.').pop() || 'mp4').toLowerCase().replace(/[^a-z0-9]/g, '') || 'mp4';
+    const vid = new Blob([file], { type: file.type || 'video/mp4' });
+    return { kind: 'video', origName: file.name, takenAt: file.lastModified || Date.now(), w, h, duration, parts: [['thumb', poster, 'thumb.jpg'], ['full', vid, 'video.' + ext]] };
+  }
+  const takenAt = (await exifDate(file)) || file.lastModified || Date.now();
+  const img = await loadImg(file);
+  const w = img.naturalWidth, h = img.naturalHeight;
+  // 原檔以完整解析度重新存檔（移除 GPS），另做顯示用與縮圖
+  const full = await resize(img, w, h, 6000, .92), disp = await resize(img, w, h, 1600, .85), thumb = await resize(img, w, h, 360, .75);
+  URL.revokeObjectURL(img.src);
+  return { kind: 'image', origName: file.name.replace(/\.[^.]+$/, '') + '.jpg', takenAt, w, h, parts: [['thumb', thumb, 'thumb.jpg'], ['disp', disp, 'disp.jpg'], ['full', full, 'full.jpg']] };
+}
+
+/* =====================================================================
+   ② 資料後端：Google Apps Script ＋ 你的 Google 雲端硬碟（零費用）
+   ===================================================================== */
+const TOKEN_KEY = 'albumIdToken';
+const jwtPayload = t => { try { return JSON.parse(decodeURIComponent(escape(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))))); } catch { return {}; } };
+const jwtExp = t => (jwtPayload(t).exp || 0) * 1000;
+async function waitGIS() {
+  for (let i = 0; i < 150 && !window.google?.accounts?.id; i++) await new Promise(r => setTimeout(r, 100));
+  if (!window.google?.accounts?.id) throw new Error('Google 登入元件載入失敗，請檢查網路後重新整理');
+}
+function b64ToBlob(b64, type = '') { const bin = atob(b64), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return new Blob([u], { type }); }
+const toB64 = blob => new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result).split(',')[1] || ''); fr.onerror = rej; fr.readAsDataURL(blob); });
+const mkErr = code => { const e = new Error(code); e.code = code; return e; };
+
+function makeGAS(url, clientId) {
+  let token = LS.get(TOKEN_KEY, ''), waiters = [];
+  const cache = new Map(), inflight = new Map(), pending = new Map();
+  let timer = null;
+  const valid = () => token && jwtExp(token) - Date.now() > 90e3;
+  const gotToken = t => { token = t; LS.set(TOKEN_KEY, t); const w = waiters; waiters = []; w.forEach(f => f(t)); };
+
+  async function ensureToken() {
+    if (valid()) return token;
+    await waitGIS();
+    const t = await new Promise(res => { waiters.push(res); try { google.accounts.id.prompt(); } catch {} setTimeout(() => res(null), 12000); });
+    if (!t) { setTimeout(() => { if (!$('#gbtn')) renderLogin('登入已過期，請再按一次登入'); }, 0); throw mkErr('TOKEN_EXPIRED'); }
+    return t;
+  }
+  async function call(action, args = {}, retry = true) {
+    const t = await ensureToken();
+    let r;
+    try { r = await fetch(url, { method: 'POST', body: JSON.stringify({ action, token: t, ...args }) }); }
+    catch { throw mkErr('NETWORK'); }
+    const j = await r.json().catch(() => ({ ok: false, error: 'BAD_RESPONSE' }));
+    if (!j.ok) {
+      if (j.error === 'TOKEN_INVALID' && retry) { token = ''; LS.set(TOKEN_KEY, ''); return call(action, args, false); }
+      const e = mkErr(j.error); e.email = j.email; throw e;
+    }
+    return j.data;
+  }
+
+  // 縮圖一次批次取 24 張，減少往返
+  function flush() {
+    timer = null;
+    const groups = {};
+    for (const [k, e] of pending) (groups[e.which] ||= []).push([k, e]);
+    pending.clear();
+    for (const which in groups) {
+      const list = groups[which];
+      for (let i = 0; i < list.length; i += 24) {
+        const part = list.slice(i, i + 24);
+        call('media', { ids: part.map(([k]) => k.split('|')[1]), which }).then(res => {
+          for (const [k, e] of part) {
+            const b = res[k.split('|')[1]];
+            if (b) { const u = URL.createObjectURL(b64ToBlob(b, 'image/jpeg')); cache.set(k, u); e.res(u); } else e.rej(mkErr('NO_MEDIA'));
+          }
+        }).catch(err => part.forEach(([, e]) => e.rej(err)));
+      }
+    }
+  }
+  function media(p, which) {
+    const k = which + '|' + p.id;
+    if (cache.has(k)) return Promise.resolve(cache.get(k));
+    if (inflight.has(k)) return inflight.get(k);
+    const pr = new Promise((res, rej) => { pending.set(k, { which, res, rej }); if (!timer) timer = setTimeout(flush, 60); })
+      .finally(() => inflight.delete(k));
+    inflight.set(k, pr); return pr;
+  }
+  // 原檔（影片、下載原圖）分段取回
+  async function original(p, onProg) {
+    const k = 'full|' + p.id;
+    if (cache.has(k)) return cache.get(k);
+    const CH = 6 * 1024 * 1024, parts = [];
+    let start = 0, total = Infinity;
+    while (start < total) {
+      const r = await call('chunk', { id: p.id, start, len: CH });
+      const blob = b64ToBlob(r.b64); if (!blob.size) break;
+      parts.push(blob); start += blob.size; total = r.total || start;
+      onProg?.(Math.min(1, start / total));
+    }
+    const u = URL.createObjectURL(new Blob(parts, { type: p.mime || (p.kind === 'video' ? 'video/mp4' : 'image/jpeg') }));
+    cache.set(k, u); return u;
+  }
+
+  return {
+    demo: false,
+    init(cb) {
+      waitGIS().then(() => {
+        google.accounts.id.initialize({
+          client_id: clientId, auto_select: true, cancel_on_tap_outside: false, use_fedcm_for_prompt: true,
+          callback: r => { gotToken(r.credential); if (!S.me) cb(true); },
+        });
+        if (valid()) cb(true); else { cb(false); google.accounts.id.prompt(); }
+      }).catch(e => { app.innerHTML = `<div class="center"><div class="card">${esc(e.message)}</div></div>`; });
+    },
+    renderButton(el) { waitGIS().then(() => google.accounts.id.renderButton(el, { theme: 'filled_blue', size: 'large', shape: 'pill', text: 'signin_with', locale: 'zh-TW', width: 280 })).catch(() => {}); },
+    async signIn() { await waitGIS(); google.accounts.id.prompt(); },
+    async signOut() { token = ''; LS.set(TOKEN_KEY, ''); cache.forEach(u => URL.revokeObjectURL(u)); cache.clear(); try { google.accounts.id.disableAutoSelect(); } catch {} },
+    currentEmail() { return jwtPayload(token).email || ''; },
+    bootstrap() { return call('bootstrap'); },
+    setConfig(c) { return call('setConfig', { cfg: c }); },
+    saveMember(m) { return call('saveMember', { member: m }); },
+    removeMember(email) { return call('removeMember', { email }); },
+    async saveAlbum(a) { return (await call('saveAlbum', { album: a })).id; },
+    deleteAlbum(id) { return call('deleteAlbum', { id }); },
+    async upload(albumId, item, meta, onProg) {
+      const parts = Object.fromEntries(item.parts.map(([k, b]) => [k, b])), full = parts.full;
+      const mime = full.type || 'application/octet-stream';
+      const { uploadId } = await call('uploadStart', {
+        albumId, meta: { ...meta, mime }, thumb: await toB64(parts.thumb), disp: parts.disp ? await toB64(parts.disp) : '',
+        orig: { name: item.origName || 'file', mime, size: full.size } });
+      const CH = 6 * 1024 * 1024;   // 必須是 256KB 的倍數
+      for (let s = 0; s < full.size; s += CH) {
+        const b64 = await toB64(full.slice(s, s + CH));
+        try { await call('uploadChunk', { uploadId, start: s, b64 }); }
+        catch (e) { if (e.code !== 'NETWORK') throw e; await new Promise(r => setTimeout(r, 2000)); await call('uploadChunk', { uploadId, start: s, b64 }); }
+        onProg?.(Math.min(1, (s + CH) / full.size));
+      }
+      return { ...(await call('uploadFinish', { uploadId })) };
+    },
+    getMediaURL(p, which, onProg) { return which === 'full' ? original(p, onProg) : media(p, which); },
+    updatePhoto(p, patch) { return call('updatePhoto', { id: p.id, patch }); },
+    toggleLike(p, email, on) { return call('like', { id: p.id, on }); },
+    listComments(p) { return call('comments', { id: p.id }); },
+    addComment(p, c) { return call('addComment', { id: p.id, text: c.text }); },
+    deleteComment(p, c) { return call('delComment', { cid: c.id }); },
+    deleteForever(p) { return call('deleteForever', { id: p.id }); },
+    log(e) { return call('log', { text: e.text }).catch(() => {}); },
+    listActivity() { return call('activity'); },
+  };
+}
+
+/* =====================================================================
+   ③ 示範模式（沒填 API_URL 時使用，資料只在這個頁面裡，關掉就消失）
+   ===================================================================== */
+function makeDemo() {
+  const now = Date.now(), day = 864e5;
+  const bd = new Date(now - 130 * day);
+  const birthday = `${bd.getFullYear()}-${pad(bd.getMonth()+1)}-${pad(bd.getDate())}`;
+  const members = [
+    { email: 'dad@demo', name: '爸爸', relation: '', role: 'admin', canDownload: true, owner: true, lastSeen: now },
+    { email: 'mom@demo', name: '媽媽', relation: '', role: 'admin', canDownload: true, owner: true, lastSeen: now - 2 * 3600e3 },
+    { email: 'grandpa@demo', name: '爺爺', relation: '爺爺', role: 'family', canDownload: true, lastSeen: now - 1 * day },
+    { email: 'ama@demo', name: '阿嬤', relation: '阿嬤', role: 'viewer', canDownload: false, lastSeen: now - 5 * 3600e3 },
+    { email: 'aunt@demo', name: '小阿姨', relation: '阿姨', role: 'viewer', canDownload: true, lastSeen: 0 },
+  ];
+  const albums = [
+    { id: 'a1', name: '日常生活', visibility: 'everyone', allowed: [], allowUpload: true, createdAt: now - 120 * day },
+    { id: 'a2', name: '滿月＆收涎', visibility: 'everyone', allowed: [], allowUpload: false, createdAt: now - 100 * day },
+    { id: 'a3', name: '洗澡＆私密照', visibility: 'parents', allowed: [], allowUpload: false, createdAt: now - 90 * day },
+    { id: 'a4', name: '家族聚會', visibility: 'family', allowed: ['ama@demo'], allowUpload: true, createdAt: now - 80 * day },
+  ];
+  const art = (emoji, text, hue) => 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="hsl(${hue},85%,88%)"/><stop offset="1" stop-color="hsl(${(hue+40)%360},80%,80%)"/></linearGradient></defs><rect width="400" height="400" fill="url(#g)"/><circle cx="330" cy="70" r="40" fill="#fff" opacity=".5"/><text x="200" y="230" font-size="150" text-anchor="middle">${emoji}</text><text x="200" y="335" font-size="30" text-anchor="middle" fill="#6b4f47" font-family="sans-serif">${text}</text></svg>`);
+  const seed = [
+    ['a2','👶','出生第一天',129,'','admin'],['a2','🎂','滿月',100,'滿月','admin'],['a2','🍪','收涎',96,'收涎','admin'],
+    ['a1','😊','第一次笑',85,'第一次笑','admin'],['a1','🧸','玩玩具',70,'','family'],['a1','🍼','喝奶奶',60,'',''],
+    ['a3','🛁','洗澎澎',55,'',''],['a3','🫧','泡泡浴',30,'',''],['a4','🎉','家族聚餐',45,'','family'],
+    ['a4','👵','阿嬤抱抱',44,'',''],['a1','🔄','第一次翻身',25,'第一次翻身',''],['a1','🌳','去公園',12,'第一次出遊',''],
+    ['a1','😴','睡午覺',4,'',''],['a1','🐣','穿小雞裝',1,'',''],['a4','📸','全家福',2,'',''],
+  ];
+  const photos = seed.map(([albumId, e, t, d, ms, who], i) => {
+    const url = art(e, t, (i * 37) % 360);
+    return { id: 'p' + i, albumId, kind: i === 4 ? 'video' : 'image', takenAt: now - d * day - i * 1e6, createdAt: now - d * day + 3600e3,
+      uploader: who === 'family' ? 'grandpa@demo' : (i % 2 ? 'mom@demo' : 'dad@demo'), caption: t, milestone: ms,
+      state: i === 13 ? 'hidden' : 'normal', likes: i % 3 ? ['ama@demo'] : ['ama@demo', 'grandpa@demo'], commentCount: i === 1 ? 1 : 0,
+      bytes: 650000, files: { thumb: 'thumb.jpg', full: 'full.jpg' }, _url: { thumb: url, full: url }, _demoVideo: i === 4 };
+  });
+  photos[photos.length - 1].createdAt = now - 600e3; // 讓最新一張顯示「新」
+  const comments = { 'a2/p1': [{ id: 'c1', author: 'ama@demo', name: '阿嬤', text: '好可愛喔！阿嬤好想你～', at: now - 99 * day }] };
+  const activity = [
+    { at: now - 600e3, actor: 'dad@demo', actorName: '爸爸', text: '上傳了 1 張到「家族聚會」' },
+    { at: now - 1 * day, actor: 'grandpa@demo', actorName: '爺爺', text: '上傳了 1 張到「日常生活」' },
+    { at: now - 3 * day, actor: 'mom@demo', actorName: '媽媽', text: '把「小阿姨」加入相簿（只能看）' },
+  ];
+  let current = 'dad@demo', cfg = { babyName: '果果', birthday };
+  const clone = o => JSON.parse(JSON.stringify(o));
+  return {
+    demo: true, members,
+    init(cb) { cb(true); },
+    async signIn() {}, async signOut() { toast('示範模式不需要登出'); },
+    currentEmail() { return current; },
+    renderButton() {},
+    async bootstrap() {
+      const me = await this.getMe(); if (!me) { const e = new Error('NOT_INVITED'); e.code = 'NOT_INVITED'; e.email = current; throw e; }
+      const albums = await this.listAlbums(me);
+      const ps = (await Promise.all(albums.map(a => this.listPhotos(a, me)))).flat();
+      return { me, cfg: { ...cfg }, albums, photos: ps, members: clone(members) };
+    },
+    setUser(e) { current = e; },
+    async getMe() { const m = members.find(x => x.email === current); return m ? { ...m } : null; },
+    async getConfig() { return { ...cfg }; },
+    async setConfig(c) { cfg = { ...cfg, ...c }; },
+    async listMembers() { return clone(members); },
+    async saveMember(m) { const i = members.findIndex(x => x.email === m.email); if (i >= 0) members[i] = { ...members[i], ...m }; else members.push({ ...m }); },
+    async removeMember(e) { const i = members.findIndex(x => x.email === e); if (i >= 0) members.splice(i, 1); },
+    async listAlbums(me) { return clone(albums.filter(a => canSee(a, me))); },
+    async saveAlbum(a) { if (a.id) { Object.assign(albums.find(x => x.id === a.id), a); return a.id; } const id = 'a' + Date.now(); albums.push({ ...a, id }); return id; },
+    async deleteAlbum(id) { albums.splice(albums.findIndex(a => a.id === id), 1); },
+    async listPhotos(a, me) { return photos.filter(p => p.albumId === a.id && (me.role === 'admin' || p.state === 'normal')).map(p => ({ ...p })); },
+    async upload(albumId, item, meta, onProg) {
+      onProg?.(1);
+      const _url = {}, files = {}; let bytes = 0;
+      for (const [k, b, n] of item.parts) { _url[k] = URL.createObjectURL(b); files[k] = n; bytes += b.size; }
+      const p = { id: 'p' + Date.now() + Math.random().toString(36).slice(2, 6), albumId, ...meta, files, bytes, state: 'normal', likes: [], commentCount: 0, _url };
+      photos.push(p); return { ...p };
+    },
+    async getMediaURL(p, which) { const src = photos.find(x => x.id === p.id); if (!src) throw new Error('gone'); return src._url[which] || src._url.disp || src._url.full || src._url.thumb; },
+    async updatePhoto(p, patch) { Object.assign(photos.find(x => x.id === p.id), patch); },
+    async toggleLike(p, email, on) { const x = photos.find(y => y.id === p.id); x.likes = on ? [...new Set([...x.likes, email])] : x.likes.filter(e => e !== email); },
+    async listComments(p) { return clone(comments[p.albumId + '/' + p.id] || []); },
+    async addComment(p, c) { const k = p.albumId + '/' + p.id, n = { id: 'c' + Date.now(), ...c }; (comments[k] ||= []).push(n); photos.find(x => x.id === p.id).commentCount++; return n; },
+    async deleteComment(p, c) { const k = p.albumId + '/' + p.id; comments[k] = (comments[k] || []).filter(x => x.id !== c.id); photos.find(x => x.id === p.id).commentCount--; },
+    async deleteForever(p) { photos.splice(photos.findIndex(x => x.id === p.id), 1); },
+    async log(e) { activity.unshift(e); },
+    async listActivity() { return clone(activity); },
+  };
+}
+
+/* =====================================================================
+   ④ 畫面
+   ===================================================================== */
+const S = { be: null, me: null, cfg: {}, albums: [], photos: [], members: [], tab: 'timeline', albumId: null, prevSeen: 0, lb: null, adminView: null };
+const app = $('#app');
+const isAdmin = () => S.me?.role === 'admin';
+const babyName = () => S.cfg.babyName || '寶寶';
+const albumById = id => S.albums.find(a => a.id === id);
+const findPhoto = (aid, pid) => S.photos.find(p => p.albumId === aid && p.id === pid);
+const memberName = email => { const m = S.members.find(x => x.email === email); return m ? (m.name || m.relation || email) : (email === S.me?.email ? S.me.name : email?.split('@')[0] || '家人'); };
+const uploadableAlbums = () => S.albums.filter(a => canUploadTo(a, S.me));
+const logAct = text => S.be.log({ at: Date.now(), actor: S.me.email, actorName: S.me.name || S.me.email, text });
+
+if (LS.get('bigText', false)) document.documentElement.classList.add('big');
+
+async function boot() {
+  // LINE 內建瀏覽器無法用 Google 登入 → 自動改用手機的外部瀏覽器開啟
+  const ua = navigator.userAgent;
+  if (/ Line\//i.test(ua) && !location.search.includes('openExternalBrowser')) {
+    location.replace(location.pathname + (location.search ? location.search + '&' : '?') + 'openExternalBrowser=1' + location.hash); return;
+  }
+  if (API_URL && /FBAN|FBAV|Instagram|MicroMessenger| Line\//i.test(ua)) return renderInApp();
+  S.be = API_URL ? makeGAS(API_URL, GOOGLE_CLIENT_ID) : makeDemo();
+  S.be.init(signed => signed ? loadAll() : renderLogin());
+  if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+
+async function loadAll(keepView) {
+  if (!keepView) app.innerHTML = '<div class="center"><div class="spin"></div></div>';
+  try {
+    const d = await S.be.bootstrap();
+    S.me = d.me; S.cfg = d.cfg || {}; S.albums = d.albums || []; S.photos = d.photos || []; S.members = d.members || [];
+    const key = 'lastSeen:' + S.me.email;
+    if (!keepView) { S.prevSeen = LS.get(key, Date.now() - 3 * 864e5); LS.set(key, Date.now()); }
+    if (S.albumId && !albumById(S.albumId)) S.albumId = null;
+    render();
+  } catch (e) {
+    console.error(e);
+    S.me = null;
+    if (e.code === 'NOT_INVITED') return renderNotInvited(e.email);
+    if (/TOKEN|NO_TOKEN/.test(e.code || '')) return renderLogin('請重新登入');
+    if (e.code === 'NOT_SETUP') e.message = '後端還沒執行 setup，請參考設定教學第二步';
+    app.innerHTML = `<div class="center"><div class="card login"><div class="logo">😵</div><p>讀取資料失敗</p><p class="hint">${esc(e.code || e.message)}</p><button class="btn" data-act="reload">重新整理</button> <button class="btn ghost" data-act="signOut">登出</button></div></div>`;
+  }
+}
+
+function renderLogin(msg) {
+  app.innerHTML = `<div class="center"><div class="card login">
+    <div class="logo">👶📷</div><h1>寶寶家庭相簿</h1>
+    ${msg ? `<p><b>${esc(msg)}</b></p>` : ''}
+    <p class="hint">只有爸爸媽媽邀請的家人能看到照片。<br>請用被邀請的 Google（Gmail）帳號登入。</p>
+    <div id="gbtn" style="display:flex;justify-content:center;margin-top:.8rem;min-height:44px"></div>
+  </div></div>`;
+  S.be.renderButton($('#gbtn'));
+}
+function renderNotInvited(email) {
+  email = email || S.be.currentEmail();
+  app.innerHTML = `<div class="center"><div class="card login">
+    <div class="logo">🙈</div><h2>還沒有被邀請</h2>
+    <p>你現在登入的是<br><b>${esc(email)}</b></p>
+    <p class="hint">請把這個 Email 傳給寶寶的爸爸或媽媽，請他們把你加進相簿，加好之後再重新整理就能看到照片。</p>
+    <div class="row" style="justify-content:center;margin-top:.6rem">
+      <button class="btn" data-act="copy" data-text="${esc(email)}">複製我的 Email</button>
+      <button class="btn ghost" data-act="reload">重新整理</button>
+      <button class="btn ghost" data-act="signOut">換帳號</button>
+    </div></div></div>`;
+}
+function renderInApp() {
+  app.innerHTML = `<div class="center"><div class="card login"><div class="logo">🌐</div><h2>請用瀏覽器打開</h2>
+    <p>Google 不允許在 LINE／Facebook 裡面登入。</p>
+    <p class="hint">請按右上角「⋯」→ 選「用瀏覽器開啟」（Safari 或 Chrome），或複製網址貼到瀏覽器。</p>
+    <button class="btn" data-act="copy" data-text="${esc(location.href.split('?')[0])}">複製網址</button></div></div>`;
+}
+
+function render() {
+  const canUp = uploadableAlbums().length > 0;
+  const age = S.cfg.birthday ? babyAge(Date.now()) : '';
+  const demoSel = S.be.demo ? `<select class="demo-sel" data-change="demoUser" title="用誰的身分預覽">
+      ${S.be.members.map(m => `<option value="${m.email}" ${m.email === S.me.email ? 'selected' : ''}>以「${esc(m.name)}」預覽（${ROLES[m.role].short}）</option>`).join('')}
+    </select>` : '';
+  app.innerHTML = `
+  <header class="top">
+    <div><h1>${esc(babyName())}的相簿</h1>${age ? `<div class="age">今天 ${esc(age)}</div>` : ''}</div>
+    <span class="sp"></span>
+    ${S.be.demo ? '<span class="demo">示範模式</span>' : ''}
+    <button title="重新整理" data-act="refresh" style="font-size:1.2rem">↻</button>
+  </header>
+  ${S.be.demo ? `<div style="padding:.5rem 1rem 0;max-width:960px;margin:auto">${demoSel}</div>` : ''}
+  <main>${view()}</main>
+  <nav class="bottom">
+    ${navBtn('timeline', '🗓️', '時間軸')}${navBtn('albums', '📁', '相簿')}
+    ${canUp ? '<button class="fab" data-act="upload" aria-label="上傳">＋</button>' : ''}
+    ${navBtn('milestones', '⭐', '里程碑')}${navBtn('me', isAdmin() ? '⚙️' : '🙂', isAdmin() ? '管理' : '我的')}
+  </nav>`;
+  observeMedia();
+}
+const navBtn = (t, i, l) => `<button class="${S.tab === t ? 'on' : ''}" data-act="tab" data-tab="${t}"><span class="i">${i}</span>${l}</button>`;
+function view() {
+  if (S.tab === 'albums') return viewAlbums();
+  if (S.tab === 'milestones') return viewMilestones();
+  if (S.tab === 'me') return isAdmin() ? viewAdmin() : viewMe();
+  return viewTimeline();
+}
+
+const visiblePhotos = () => S.photos.filter(p => p.state === 'normal' && (!S.albumId || p.albumId === S.albumId)).sort((a, b) => b.takenAt - a.takenAt);
+function tile(p, list) {
+  const isNew = p.createdAt > S.prevSeen && p.uploader !== S.me.email;
+  return `<button class="tile" data-act="open" data-key="${p.albumId}/${p.id}" data-list="${list}">
+    <img data-media="${p.albumId}/${p.id}/thumb" alt="">
+    ${isNew ? '<span class="b new">新</span>' : ''}${p.milestone ? '<span class="b ms">⭐</span>' : ''}
+    ${p.kind === 'video' ? `<span class="b vid">▶${p.duration ? ' ' + Math.floor(p.duration / 60) + ':' + pad(p.duration % 60) : ''}</span>` : ''}
+    ${p.state === 'hidden' ? '<span class="b hid">隱藏</span>' : ''}
+  </button>`;
+}
+function viewTimeline() {
+  const ps = visiblePhotos(), al = S.albumId && albumById(S.albumId);
+  const head = al ? `<div class="row" style="margin-bottom:.4rem"><span class="chip">📁 ${esc(al.name)} · ${VIS[al.visibility].icon}</span><button class="chip" data-act="clearAlbum">✕ 看全部</button></div>` : '';
+  if (!ps.length) return head + `<div class="empty"><div class="e">🌱</div><p>這裡還沒有照片</p>${uploadableAlbums().length ? '<p class="hint">按下方「＋」上傳第一張吧！</p>' : ''}</div>`;
+  const newCount = ps.filter(p => p.createdAt > S.prevSeen && p.uploader !== S.me.email).length;
+  let html = head + (newCount ? `<div class="chip" style="background:#ffe1e7;border-color:var(--pink)">🎉 上次之後新增了 ${newCount} 張</div>` : '');
+  let cur = '';
+  for (const p of ps) {
+    const d = new Date(p.takenAt), k = `${d.getFullYear()}年${d.getMonth() + 1}月`;
+    if (k !== cur) { if (cur) html += '</div>'; cur = k; html += `<div class="month"><b>${k}</b><span>${esc(babyAge(p.takenAt))}</span></div><div class="grid">`; }
+    html += tile(p, 'timeline');
+  }
+  return html + '</div>';
+}
+function viewAlbums() {
+  const items = S.albums.slice().sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).map(a => {
+    const ps = S.photos.filter(p => p.albumId === a.id && p.state === 'normal').sort((x, y) => y.takenAt - x.takenAt);
+    const cover = ps.find(p => p.id === a.coverId) || ps[0];
+    const extra = (a.allowed || []).length ? ` +${a.allowed.length}人` : '';
+    return `<div class="album"><button data-act="openAlbum" data-id="${a.id}" style="width:100%;text-align:left;padding:0">
+      <div class="cv">${cover ? `<img data-media="${cover.albumId}/${cover.id}/thumb" alt="">` : '📷'}</div>
+      <div class="meta"><b>${esc(a.name)}</b><small>${ps.length} 張 · <span class="vis">${VIS[a.visibility].icon} ${a.visibility === 'everyone' ? '所有家人' : a.visibility === 'family' ? '核心家人' : '只有爸媽'}${extra}</span>${a.allowUpload ? ' · 可上傳' : ''}</small></div></button>
+      ${isAdmin() ? `<button class="edit" data-act="editAlbum" data-id="${a.id}">✏️ 權限</button>` : ''}</div>`;
+  }).join('');
+  return `<div class="row" style="margin-bottom:.8rem"><b style="font-size:1.1rem">相簿</b><span class="sp"></span>${isAdmin() ? '<button class="btn sm" data-act="editAlbum">＋ 新增相簿</button>' : ''}</div>
+    ${S.albums.length ? `<div class="albums">${items}</div>` : '<div class="empty"><div class="e">📁</div><p>還沒有可以看的相簿</p></div>'}`;
+}
+function viewMilestones() {
+  const ps = S.photos.filter(p => p.state === 'normal' && p.milestone).sort((a, b) => a.takenAt - b.takenAt);
+  if (!ps.length) return `<div class="empty"><div class="e">⭐</div><p>還沒有里程碑</p><p class="hint">上傳或編輯照片時選「里程碑」（第一次翻身、收涎、抓周…），就會收集在這裡。</p></div>`;
+  return `<div class="ms-list">${ps.map(p => `<button class="it" data-act="open" data-key="${p.albumId}/${p.id}" data-list="milestones">
+    <div class="th"><img data-media="${p.albumId}/${p.id}/thumb" alt=""></div>
+    <div><b>⭐ ${esc(p.milestone)}</b><small>${fmtDate(p.takenAt)} · ${esc(babyAge(p.takenAt))}</small>${p.caption ? `<div class="hint">${esc(p.caption)}</div>` : ''}</div></button>`).join('')}</div>`;
+}
+function bigTextCard() {
+  return `<div class="card"><h3>👀 顯示</h3><label class="chk"><input type="checkbox" data-change="bigText" ${document.documentElement.classList.contains('big') ? 'checked' : ''}> 長輩模式（字和照片變大）</label>
+    <p class="hint">想像 App 一樣使用：iPhone 用 Safari 按「分享 → 加入主畫面」；Android 用 Chrome 按「⋮ → 加到主畫面」。</p></div>`;
+}
+function viewMe() {
+  return `<div class="card"><div class="mem"><div class="av" style="background:${avColor(S.me.email)}">${esc((S.me.name || '我')[0])}</div>
+    <div class="info"><b>${esc(S.me.name || S.me.email)}</b> <span class="role ${S.me.role}">${ROLES[S.me.role].short}</span><small>${esc(S.me.email)}</small></div></div>
+    <p class="hint">你可以：${ROLES[S.me.role].can}${S.me.canDownload ? '、下載照片' : ''}。</p></div>
+    ${bigTextCard()}
+    <button class="btn ghost" data-act="signOut" style="width:100%">登出</button>`;
+}
+function viewAdmin() {
+  const mem = S.members.slice().sort((a, b) => (b.role === 'admin') - (a.role === 'admin') || (a.name || '').localeCompare(b.name || ''));
+  const totalBytes = S.photos.reduce((s, p) => s + (p.bytes || 0), 0);
+  const trash = S.photos.filter(p => p.state === 'trash'), hidden = S.photos.filter(p => p.state === 'hidden');
+  const v = S.adminView;
+  if (v === 'trash' || v === 'hidden') {
+    const list = v === 'trash' ? trash : hidden;
+    return `<button class="chip" data-act="adminView" data-v="">‹ 返回</button>
+      <h3>${v === 'trash' ? '🗑️ 回收桶' : '🙈 隱藏的照片'}</h3>
+      <p class="hint">${v === 'trash' ? '移到回收桶的照片 30 天後會自動永久刪除。' : '隱藏的照片只有管理者看得到，其他家人看不到。'}</p>
+      ${list.length ? `<div class="mini-grid">${list.map(p => `<div class="m">${tile(p, v)}<div class="acts">
+        ${v === 'trash' ? `<small class="hint">剩 ${Math.max(0, 30 - Math.floor((Date.now() - (p.trashedAt || Date.now())) / 864e5))} 天</small>` : ''}
+        <button class="btn sm ghost" data-act="restore" data-key="${p.albumId}/${p.id}">還原</button>
+        ${v === 'trash' ? `<button class="btn sm danger" data-act="purge" data-key="${p.albumId}/${p.id}">永久刪除</button>` : ''}
+      </div></div>`).join('')}</div>` : '<div class="empty">空空的 ✨</div>'}`;
+  }
+  if (v === 'log') return `<button class="chip" data-act="adminView" data-v="">‹ 返回</button><h3>📜 動態紀錄</h3><div class="card" id="logBox"><div class="spin"></div></div>`;
+  return `
+  <div class="card"><div class="row"><h3 style="margin:0">👨‍👩‍👧 家人成員（${mem.length}）</h3><span class="sp"></span><button class="btn sm" data-act="editMember">＋ 邀請家人</button></div>
+    ${mem.map(m => `<div class="mem"><div class="av" style="background:${avColor(m.email)}">${esc((m.name || m.relation || '?')[0])}</div>
+      <div class="info"><b>${esc(m.name || m.email)}</b>${m.relation && m.relation !== m.name ? ` <small style="display:inline">（${esc(m.relation)}）</small>` : ''} <span class="role ${m.role}">${ROLES[m.role]?.short || m.role}</span>
+      <small>${esc(m.email)}</small><small>${m.canDownload ? '✅ 可下載' : '🚫 不可下載'} · ${ago(m.lastSeen)}</small></div>
+      ${m.owner ? '<small class="hint">爸媽</small>' : `<button class="btn sm ghost" data-act="editMember" data-email="${esc(m.email)}">編輯</button>`}</div>`).join('')}
+  </div>
+  <div class="card"><h3>👶 寶寶資料</h3>
+    <label class="f">寶寶小名</label><input id="cfgName" value="${esc(S.cfg.babyName || '')}" placeholder="例如：果果">
+    <label class="f">生日（用來自動算「幾個月幾天」）</label><input id="cfgBirth" type="date" value="${esc(S.cfg.birthday || '')}">
+    <button class="btn sm" data-act="saveCfg" style="margin-top:.7rem">儲存</button></div>
+  <div class="card"><h3>🛡️ 隱私與管理</h3>
+    <div class="row"><button class="btn ghost sm" data-act="adminView" data-v="hidden">🙈 隱藏的照片（${hidden.length}）</button>
+    <button class="btn ghost sm" data-act="adminView" data-v="trash">🗑️ 回收桶（${trash.length}）</button>
+    <button class="btn ghost sm" data-act="adminView" data-v="log">📜 動態紀錄</button></div>
+    <p class="hint" style="margin-top:.6rem">已使用 ${fmtBytes(totalBytes)}（${S.photos.length} 個項目），存在你的 Google 雲端硬碟「寶寶家庭相簿」資料夾，不另外收費。</p>
+    <p class="hint">上傳時會保留完整解析度，並自動移除照片裡的 GPS 位置等資訊，避免家裡地址外流。</p></div>
+  ${bigTextCard()}
+  <button class="btn ghost" data-act="signOut" style="width:100%">登出（${esc(S.me.email)}）</button>`;
+}
+
+/* ---------- 縮圖延遲載入 ---------- */
+const io = new IntersectionObserver(es => es.forEach(async e => {
+  if (!e.isIntersecting) return;
+  const img = e.target; io.unobserve(img);
+  const [aid, pid, which] = img.dataset.media.split('/'); const p = findPhoto(aid, pid);
+  if (!p) return;
+  try { img.src = await S.be.getMediaURL(p, which); img.onload = () => img.classList.add('ok'); }
+  catch { img.closest('.tile')?.classList.add('err'); }
+}), { rootMargin: '400px' });
+function observeMedia(root = document) { root.querySelectorAll('img[data-media]').forEach(i => io.observe(i)); }
+
+/* ---------- 彈出視窗 ---------- */
+function openModal(html) { closeModal(); const m = document.createElement('div'); m.className = 'modal'; m.id = 'modal'; m.innerHTML = `<div class="sheet">${html}</div>`; m.addEventListener('click', e => { if (e.target === m && !m.dataset.lock) closeModal(); }); document.body.appendChild(m); return m; }
+function closeModal() { $('#modal')?.remove(); }
+function msSelect(cur = '') {
+  const custom = cur && !MILESTONES.includes(cur);
+  return `<select id="msSel"><option value="">（不是里程碑）</option>${MILESTONES.map(m => `<option ${m === cur ? 'selected' : ''}>${m}</option>`).join('')}<option value="__c" ${custom ? 'selected' : ''}>自己輸入…</option></select>
+    <input id="msCustom" placeholder="自訂里程碑，例如：第一次游泳" value="${custom ? esc(cur) : ''}" style="margin-top:.4rem;${custom ? '' : 'display:none'}">`;
+}
+const readMs = () => { const v = $('#msSel').value; return v === '__c' ? $('#msCustom').value.trim() : v; };
+
+/* ---------- 上傳 ---------- */
+function openUpload() {
+  const als = uploadableAlbums();
+  const def = (S.albumId && als.find(a => a.id === S.albumId)) ? S.albumId : als[0]?.id;
+  openModal(`<h2>📤 上傳照片／影片</h2>
+    <label class="f">放到哪個相簿</label>
+    <select id="upAlbum">${als.map(a => `<option value="${a.id}" ${a.id === def ? 'selected' : ''}>${esc(a.name)}（${VIS[a.visibility].icon} ${a.visibility === 'parents' ? '只有爸媽看得到' : a.visibility === 'family' ? '核心家人看得到' : '所有家人看得到'}）</option>`).join('')}</select>
+    <label class="f">選擇檔案（可一次選很多張）</label>
+    <input id="upFiles" type="file" accept="image/*,video/*" multiple>
+    <label class="f">說明（選填，套用到這次全部）</label><input id="upCap" placeholder="例如：第一次去動物園">
+    <label class="f">里程碑（選填）</label>${msSelect()}
+    <p class="hint">照片保留完整解析度並自動移除 GPS 位置；影片上限 200MB，建議 2 分鐘內。</p>
+    <div class="row" style="margin-top:.6rem"><button class="btn" data-act="doUpload">開始上傳</button><button class="btn ghost" data-act="closeModal">取消</button></div>
+    <div class="prog" id="upProg"></div>`);
+}
+async function doUpload(btn) {
+  const files = [...$('#upFiles').files]; if (!files.length) return toast('請先選擇檔案');
+  const albumId = $('#upAlbum').value, caption = $('#upCap').value.trim(), milestone = readMs();
+  const modal = $('#modal'); modal.dataset.lock = '1'; btn.disabled = true;
+  const prog = $('#upProg'); prog.innerHTML = files.map((f, i) => `<div class="p"><span>${esc(f.name.slice(0, 28))}</span><span id="pg${i}">等待中</span></div>`).join('');
+  let ok = 0;
+  for (let i = 0; i < files.length; i++) {
+    const f = files[i], st = $('#pg' + i);
+    if (S.photos.some(p => p.albumId === albumId && p.srcName === f.name && p.srcSize === f.size && p.state !== 'trash')) { st.textContent = '⏭️ 已上傳過'; continue; }
+    try {
+      st.textContent = '處理中…';
+      const item = await prepareFile(f);
+      st.textContent = '上傳中…';
+      const meta = { kind: item.kind, takenAt: item.takenAt, createdAt: Date.now(), uploader: S.me.email, caption, milestone, w: item.w, h: item.h, srcName: f.name, srcSize: f.size };
+      if (item.duration) meta.duration = item.duration;
+      S.photos.push(await S.be.upload(albumId, item, meta, x => st.textContent = '上傳中 ' + Math.round(x * 100) + '%'));
+      st.textContent = '✅ 完成'; ok++;
+    } catch (e) { console.error(e); st.textContent = '❌ ' + (e.code === 'NO_UPLOAD' ? '沒有上傳權限' : (e.message || '失敗')).slice(0, 30); }
+  }
+  if (ok) logAct(`上傳了 ${ok} 個檔案到「${albumById(albumId)?.name}」`);
+  delete modal.dataset.lock;
+  btn.disabled = false; btn.textContent = '完成'; btn.dataset.act = 'closeModal';
+  toast(`上傳完成 ${ok}/${files.length}`); S.tab = 'timeline'; S.albumId = null;
+  render(); document.body.appendChild(modal);
+}
+
+/* ---------- 看大圖 ---------- */
+function lbList(name) {
+  if (name === 'milestones') return S.photos.filter(p => p.state === 'normal' && p.milestone).sort((a, b) => a.takenAt - b.takenAt);
+  if (name === 'trash' || name === 'hidden') return S.photos.filter(p => p.state === name);
+  return visiblePhotos();
+}
+function openLB(key, listName) {
+  const list = lbList(listName); const i = list.findIndex(p => `${p.albumId}/${p.id}` === key);
+  if (i < 0) return;
+  S.lb = { list, i, listName }; drawLB();
+}
+async function drawLB() {
+  const { list, i } = S.lb, p = list[i];
+  if (!p) return closeLB();
+  const al = albumById(p.albumId), me = S.me, liked = (p.likes || []).includes(me.email);
+  const mine = p.uploader === me.email, canEdit = isAdmin() || mine;
+  let el = $('#lb'); if (!el) { el = document.createElement('div'); el.id = 'lb'; el.className = 'lb'; document.body.appendChild(el); document.body.style.overflow = 'hidden'; }
+  el.classList.toggle('nocopy', !me.canDownload);
+  el.innerHTML = `
+    <div class="lb-top"><button data-act="lbClose" aria-label="關閉">✕</button>
+      <span class="d">${fmtDate(p.takenAt)} · ${esc(babyAge(p.takenAt))}</span><span class="sp"></span>
+      ${me.canDownload ? '<button data-act="download" title="下載">⬇️</button>' : ''}
+    </div>
+    <div class="lb-stage" id="lbStage">
+      ${p.kind === 'video' && !p._demoVideo ? '<video id="lbMedia" controls playsinline preload="metadata"></video>' : '<img id="lbMedia" alt="">'}
+      ${i > 0 ? '<button class="nav prev" data-act="lbGo" data-d="-1">‹</button>' : ''}${i < list.length - 1 ? '<button class="nav next" data-act="lbGo" data-d="1">›</button>' : ''}
+    </div>
+    <div class="lb-info">
+      ${p.milestone ? `<div class="chip" style="background:#fff3d6;border-color:var(--sun)">⭐ ${esc(p.milestone)}</div>` : ''}
+      ${p.caption ? `<p style="margin:.4rem 0;font-size:1.05rem">${esc(p.caption)}</p>` : ''}
+      <div class="hint">📁 ${esc(al?.name || '')} · 由 ${esc(memberName(p.uploader))} 上傳${p.state === 'hidden' ? ' · 🙈 已隱藏' : ''}</div>
+      <div class="lb-acts">
+        <button class="btn ghost sm like ${liked ? 'on' : ''}" data-act="like">${liked ? '❤️' : '🤍'} ${(p.likes || []).length || ''}</button>
+        ${canEdit && p.state !== 'trash' ? '<button class="btn ghost sm" data-act="editPhoto">✏️ 編輯</button>' : ''}
+        ${isAdmin() && p.state === 'normal' ? '<button class="btn ghost sm" data-act="setCover">🖼️ 設為封面</button>' : ''}
+        ${isAdmin() && p.state !== 'trash' ? `<button class="btn ghost sm" data-act="toggleHide">${p.state === 'hidden' ? '👁️ 取消隱藏' : '🙈 隱藏'}</button>` : ''}
+        ${canEdit && p.state !== 'trash' ? '<button class="btn ghost sm" data-act="trash">🗑️ 刪除</button>' : ''}
+      </div>
+      ${(p.likes || []).length ? `<div class="hint">❤️ ${p.likes.map(e => esc(memberName(e))).join('、')}</div>` : ''}
+      <div id="cmts"><div class="hint">留言載入中…</div></div>
+      <div class="row" style="margin-top:.5rem;flex-wrap:nowrap"><input id="cmtIn" placeholder="留言給${esc(babyName())}…" maxlength="500"><button class="btn sm" data-act="addCmt">送出</button></div>
+    </div>`;
+  const media = $('#lbMedia');
+  if (!me.canDownload) media.addEventListener('contextmenu', e => e.preventDefault());
+  try {
+    if (media.tagName === 'IMG') { media.src = await S.be.getMediaURL(p, 'thumb'); S.be.getMediaURL(p, 'disp').then(u => { if ($('#lbMedia') === media) media.src = u; }).catch(() => {}); }
+    else {
+      media.poster = await S.be.getMediaURL(p, 'thumb');
+      const pg = document.createElement('div'); pg.className = 'lb-prog'; pg.textContent = '影片載入中…'; $('#lbStage').appendChild(pg);
+      const u = await S.be.getMediaURL(p, 'full', f => pg.textContent = `影片載入中 ${Math.round(f * 100)}%`);
+      pg.remove(); if ($('#lbMedia') === media) media.src = u;
+    }
+  } catch { toast('檔案讀取失敗'); }
+  let sx = null; const stage = $('#lbStage');
+  stage.ontouchstart = e => sx = e.touches[0].clientX;
+  stage.ontouchend = e => { if (sx === null) return; const dx = e.changedTouches[0].clientX - sx; sx = null; if (Math.abs(dx) > 60) lbGo(dx < 0 ? 1 : -1); };
+  loadComments(p);
+}
+async function loadComments(p) {
+  const box = $('#cmts'); if (!box) return;
+  try {
+    const cs = await S.be.listComments(p); S.lb.comments = cs;
+    box.innerHTML = cs.length ? cs.map(c => `<div class="cmt"><b>${esc(c.name || memberName(c.author))}</b> ${esc(c.text)}<br><small>${fmtTime(c.at)}</small>
+      ${c.author === S.me.email || isAdmin() ? ` <button class="hint" data-act="delCmt" data-id="${c.id}">刪除</button>` : ''}</div>`).join('') : '<div class="hint">還沒有留言</div>';
+  } catch { box.innerHTML = '<div class="hint">留言讀取失敗</div>'; }
+}
+function lbGo(d) { const n = S.lb.i + d; if (n < 0 || n >= S.lb.list.length) return; S.lb.i = n; drawLB(); }
+function closeLB() { $('#lb')?.remove(); document.body.style.overflow = ''; S.lb = null; render(); }
+const curP = () => S.lb.list[S.lb.i];
+async function setState(p, state, msg) {
+  const patch = { state }; if (state === 'trash') patch.trashedAt = Date.now();
+  await S.be.updatePhoto(p, patch); Object.assign(p, patch);
+  const sp = findPhoto(p.albumId, p.id); if (sp) Object.assign(sp, patch);
+  if (state === 'trash' && !isAdmin()) S.photos = S.photos.filter(x => x !== sp);
+  logAct(msg); toast(msg.replace(/^把/, '已把'));
+}
+async function downloadCur() {
+  const p = curP();
+  try {
+    toast('準備下載中…');
+    const url = await S.be.getMediaURL(p, 'full'); const blob = await (await fetch(url)).blob();
+    const ext = p.kind === 'video' ? ((p.mime || '').includes('quicktime') ? 'mov' : 'mp4') : 'jpg';
+    const name = `${babyName()}_${fmtDate(p.takenAt).replace(/\//g, '')}_${p.id.slice(-4)}.${ext}`;
+    const file = new File([blob], name, { type: blob.type });
+    if (navigator.canShare?.({ files: [file] }) && /iPhone|iPad|Android/i.test(navigator.userAgent)) { await navigator.share({ files: [file] }); return; }
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  } catch (e) { if (e.name !== 'AbortError') toast('下載失敗'); }
+}
+
+/* ---------- 編輯：照片、相簿、家人 ---------- */
+function openEditPhoto() {
+  const p = curP();
+  openModal(`<h2>✏️ 編輯照片資訊</h2><label class="f">說明</label><textarea id="epCap">${esc(p.caption || '')}</textarea>
+    <label class="f">里程碑</label>${msSelect(p.milestone || '')}
+    <div class="row" style="margin-top:.8rem"><button class="btn" data-act="saveEditPhoto">儲存</button><button class="btn ghost" data-act="closeModal">取消</button></div>`);
+}
+function openEditAlbum(id) {
+  const a = id ? albumById(id) : { name: '', visibility: 'everyone', allowed: [], allowUpload: true };
+  const others = S.members.filter(m => m.role !== 'admin');
+  const cnt = id ? S.photos.filter(p => p.albumId === id).length : 0;
+  openModal(`<h2>${id ? '✏️ 相簿設定' : '＋ 新增相簿'}</h2>
+    <label class="f">相簿名稱</label><input id="alName" value="${esc(a.name)}" placeholder="例如：滿月、出遊、洗澡照">
+    <label class="f">誰可以看</label>
+    ${Object.entries(VIS).map(([k, v]) => `<label class="chk"><input type="radio" name="alVis" value="${k}" ${a.visibility === k ? 'checked' : ''}> ${v.icon} ${v.label}</label>`).join('')}
+    <label class="f">另外開放給（不受上面限制）</label>
+    ${others.length ? others.map(m => `<label class="chk"><input type="checkbox" class="alAllow" value="${esc(m.email)}" ${(a.allowed || []).includes(m.email) ? 'checked' : ''}> ${esc(m.name || m.email)} <span class="role ${m.role}">${ROLES[m.role].short}</span></label>`).join('') : '<p class="hint">還沒有邀請其他家人</p>'}
+    <p class="hint">例：「只有爸媽」＋勾選外婆 ＝ 只有爸媽和外婆看得到。</p>
+    <label class="chk" style="margin-top:.6rem"><input type="checkbox" id="alUp" ${a.allowUpload ? 'checked' : ''}> 允許「可上傳」的家人上傳到這本相簿</label>
+    <div class="row" style="margin-top:.9rem"><button class="btn" data-act="saveAlbum" data-id="${id || ''}">儲存</button><button class="btn ghost" data-act="closeModal">取消</button><span class="sp"></span>
+    ${id ? `<button class="btn danger sm" data-act="delAlbum" data-id="${id}" ${cnt ? `disabled title="相簿裡還有 ${cnt} 個檔案"` : ''}>刪除相簿</button>` : ''}</div>
+    ${id && cnt ? `<p class="hint">相簿裡還有 ${cnt} 個檔案（含回收桶），清空後才能刪除。</p>` : ''}`);
+}
+function openEditMember(email) {
+  const m = email ? S.members.find(x => x.email === email) : { email: '', name: '', relation: '', role: 'viewer', canDownload: true };
+  openModal(`<h2>${email ? '✏️ 編輯家人' : '＋ 邀請家人'}</h2>
+    <label class="f">對方的 Gmail（Google 帳號）</label><input id="mEmail" type="email" value="${esc(m.email)}" ${email ? 'disabled' : ''} placeholder="example@gmail.com">
+    <label class="f">稱呼</label><input id="mName" value="${esc(m.name || '')}" placeholder="例如：阿嬤、台中奶奶">
+    <label class="f">關係</label><select id="mRel"><option value="">—</option>${RELATIONS.map(r => `<option ${r === m.relation ? 'selected' : ''}>${r}</option>`).join('')}</select>
+    <label class="f">權限</label><select id="mRole">${Object.entries(ROLES).map(([k, v]) => `<option value="${k}" ${m.role === k ? 'selected' : ''}>${v.label}</option>`).join('')}</select>
+    <p class="hint" id="mRoleHint">${ROLES[m.role].can}</p>
+    <label class="chk"><input type="checkbox" id="mDl" ${m.canDownload ? 'checked' : ''}> 允許下載照片</label>
+    <div class="row" style="margin-top:.9rem"><button class="btn" data-act="saveMember" data-email="${esc(email || '')}">${email ? '儲存' : '加入並產生邀請訊息'}</button><button class="btn ghost" data-act="closeModal">取消</button><span class="sp"></span>
+    ${email ? `<button class="btn danger sm" data-act="removeMember" data-email="${esc(email)}">移除</button>` : ''}</div>
+    ${email ? '<p class="hint">移除後，對方立刻看不到任何照片。</p>' : ''}`);
+}
+function inviteText(m) {
+  const url = location.origin + location.pathname + '?openExternalBrowser=1';
+  return `${m.name || ''}您好！我們建立了${babyName()}的家庭相簿 👶📷\n\n1️⃣ 打開這個網址：\n${url}\n（如果在 LINE 裡打不開，請按右上角選「用瀏覽器開啟」）\n\n2️⃣ 按「用 Google 帳號登入」，選擇：\n${m.email}\n\n3️⃣ 登入後可以「加入主畫面」，以後點圖示就能看${babyName()}的照片了！`;
+}
+function showInvite(m) {
+  const t = inviteText(m);
+  openModal(`<h2>💌 邀請訊息</h2><p class="hint">已把 ${esc(m.name || m.email)} 加入。把下面的訊息傳給對方：</p>
+    <textarea readonly style="min-height:12rem">${esc(t)}</textarea>
+    <div class="row" style="margin-top:.6rem"><button class="btn" data-act="copy" data-text="${esc(t)}">複製</button>
+    <a class="btn" style="background:#06c755;text-decoration:none" href="https://line.me/R/msg/text/?${encodeURIComponent(t)}" target="_blank" rel="noopener">用 LINE 傳送</a>
+    <button class="btn ghost" data-act="closeModal">完成</button></div>`);
+}
+async function showLog() {
+  const box = $('#logBox'); if (!box) return;
+  try {
+    const xs = await S.be.listActivity();
+    box.innerHTML = xs.length ? xs.map(x => `<div class="log"><small>${fmtTime(x.at)}</small><b>${esc(x.actorName)}</b> ${esc(x.text)}</div>`).join('') : '<div class="hint">還沒有紀錄</div>';
+  } catch { box.innerHTML = '<div class="hint">讀取失敗</div>'; }
+}
+async function autoPurge() {
+  const old = S.photos.filter(p => p.state === 'trash' && p.trashedAt && Date.now() - p.trashedAt > 30 * 864e5);
+  for (const p of old) { try { await S.be.deleteForever(p); S.photos = S.photos.filter(x => x !== p); } catch {} }
+}
+
+/* ---------- 事件 ---------- */
+const keyP = k => { const [a, p] = k.split('/'); return findPhoto(a, p); };
+const ACT = {
+  reload: () => location.reload(),
+  refresh: () => loadAll(true).then(() => toast('已更新')),
+  signIn: async () => { try { await S.be.signIn(); } catch (e) { toast('登入失敗：' + (e.code || e.message)); } },
+  signOut: async () => { await S.be.signOut(); if (!S.be.demo) location.reload(); },
+  copy: async el => { try { await navigator.clipboard.writeText(el.dataset.text); toast('已複製'); } catch { toast('請長按文字手動複製'); } },
+  tab: el => { S.tab = el.dataset.tab; S.adminView = null; if (S.tab !== 'timeline') S.albumId = null; render(); scrollTo(0, 0); },
+  openAlbum: el => { S.albumId = el.dataset.id; S.tab = 'timeline'; render(); scrollTo(0, 0); },
+  clearAlbum: () => { S.albumId = null; render(); },
+  upload: () => openUpload(),
+  doUpload: el => doUpload(el),
+  closeModal: () => closeModal(),
+  open: el => openLB(el.dataset.key, el.dataset.list),
+  lbClose: () => closeLB(),
+  lbGo: el => lbGo(+el.dataset.d),
+  download: () => downloadCur(),
+  like: async () => { const p = curP(), on = !(p.likes || []).includes(S.me.email);
+    try { await S.be.toggleLike(p, S.me.email, on); p.likes = on ? [...(p.likes || []), S.me.email] : p.likes.filter(e => e !== S.me.email); drawLB(); } catch { toast('失敗了，再試一次'); } },
+  addCmt: async () => { const t = $('#cmtIn').value.trim(); if (!t) return; const p = curP();
+    try { await S.be.addComment(p, { author: S.me.email, name: S.me.name || '', text: t, at: Date.now() }); p.commentCount = (p.commentCount || 0) + 1; $('#cmtIn').value = ''; loadComments(p); } catch { toast('留言失敗'); } },
+  delCmt: async el => { const p = curP(), c = S.lb.comments.find(x => x.id === el.dataset.id); if (!c || !confirm('刪除這則留言？')) return;
+    try { await S.be.deleteComment(p, c); loadComments(p); } catch { toast('刪除失敗'); } },
+  editPhoto: () => openEditPhoto(),
+  saveEditPhoto: async () => { const p = curP(), patch = { caption: $('#epCap').value.trim(), milestone: readMs() };
+    try { await S.be.updatePhoto(p, patch); Object.assign(p, patch); closeModal(); drawLB(); toast('已儲存'); } catch { toast('儲存失敗'); } },
+  setCover: async () => { const p = curP(); try { await S.be.saveAlbum({ id: p.albumId, coverId: p.id }); albumById(p.albumId).coverId = p.id; toast('已設為相簿封面'); } catch { toast('失敗'); } },
+  toggleHide: async () => { const p = curP(), hide = p.state !== 'hidden';
+    try { await setState(p, hide ? 'hidden' : 'normal', hide ? '把 1 張照片設為隱藏' : '取消隱藏 1 張照片'); if (S.lb.listName === 'timeline' || S.lb.listName === 'milestones' || S.lb.listName === 'hidden') { S.lb.list.splice(S.lb.i, 1); if (S.lb.i >= S.lb.list.length) S.lb.i--; } S.lb.list.length ? drawLB() : closeLB(); } catch { toast('失敗'); } },
+  trash: async () => { if (!confirm(isAdmin() ? '移到回收桶？（30 天內可還原）' : '刪除這個檔案？（爸媽可以在 30 天內幫你還原）')) return; const p = curP();
+    try { await setState(p, 'trash', `把 1 個檔案移到回收桶（${albumById(p.albumId)?.name}）`); S.lb.list.splice(S.lb.i, 1); if (S.lb.i >= S.lb.list.length) S.lb.i--; S.lb.list.length ? drawLB() : closeLB(); } catch { toast('刪除失敗'); } },
+  restore: async el => { const p = keyP(el.dataset.key); try { await setState(p, 'normal', '還原了 1 個檔案'); render(); } catch { toast('失敗'); } },
+  purge: async el => { const p = keyP(el.dataset.key); if (!confirm('永久刪除後無法復原，確定嗎？')) return;
+    try { await S.be.deleteForever(p); S.photos = S.photos.filter(x => x !== p); logAct('永久刪除了 1 個檔案'); render(); } catch { toast('刪除失敗'); } },
+  adminView: el => { S.adminView = el.dataset.v || null; render(); scrollTo(0, 0); if (S.adminView === 'log') showLog(); },
+  saveCfg: async () => { const c = { babyName: $('#cfgName').value.trim(), birthday: $('#cfgBirth').value };
+    try { await S.be.setConfig(c); Object.assign(S.cfg, c); render(); toast('已儲存'); } catch { toast('儲存失敗'); } },
+  editAlbum: el => openEditAlbum(el.dataset.id),
+  saveAlbum: async el => {
+    const name = $('#alName').value.trim(); if (!name) return toast('請輸入相簿名稱');
+    const a = { name, visibility: document.querySelector('input[name=alVis]:checked').value, allowed: [...document.querySelectorAll('.alAllow:checked')].map(x => x.value), allowUpload: $('#alUp').checked };
+    if (el.dataset.id) a.id = el.dataset.id; else a.createdAt = Date.now();
+    try { const id = await S.be.saveAlbum(a); const ex = albumById(id); ex ? Object.assign(ex, a) : S.albums.push({ ...a, id }); logAct(`${el.dataset.id ? '修改' : '建立'}了相簿「${name}」（${VIS[a.visibility].label}${a.allowed.length ? ` + ${a.allowed.map(memberName).join('、')}` : ''}）`); closeModal(); render(); toast('已儲存'); }
+    catch (e) { toast('儲存失敗：' + (e.code || '')); } },
+  delAlbum: async el => { const a = albumById(el.dataset.id); if (!confirm(`刪除相簿「${a.name}」？`)) return;
+    try { await S.be.deleteAlbum(a.id); S.albums = S.albums.filter(x => x !== a); logAct(`刪除了相簿「${a.name}」`); closeModal(); render(); } catch { toast('刪除失敗'); } },
+  editMember: el => openEditMember(el.dataset.email),
+  saveMember: async el => {
+    const isNew = !el.dataset.email, email = (isNew ? $('#mEmail').value : el.dataset.email).trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return toast('請輸入正確的 Email');
+    if (isNew && S.members.some(m => m.email === email)) return toast('這個 Email 已經在名單裡');
+    const m = { email, name: $('#mName').value.trim() || $('#mRel').value || email.split('@')[0], relation: $('#mRel').value, role: $('#mRole').value, canDownload: $('#mDl').checked };
+    if (isNew) m.addedAt = Date.now();
+    try { await S.be.saveMember(m); const ex = S.members.find(x => x.email === email); ex ? Object.assign(ex, m) : S.members.push(m);
+      logAct(`${isNew ? '把' : '修改'}「${m.name}」${isNew ? '加入相簿' : '的權限'}（${ROLES[m.role].short}${m.canDownload ? '' : '、不可下載'}）`);
+      render(); isNew ? showInvite(m) : (closeModal(), toast('已儲存')); }
+    catch (e) { toast('儲存失敗：' + (e.code || '')); } },
+  removeMember: async el => { const m = S.members.find(x => x.email === el.dataset.email); if (!confirm(`確定移除「${m.name}」？對方會立刻看不到所有照片。`)) return;
+    try { await S.be.removeMember(m.email); S.members = S.members.filter(x => x !== m);
+      for (const a of S.albums.filter(a => (a.allowed || []).includes(m.email))) { a.allowed = a.allowed.filter(e => e !== m.email); await S.be.saveAlbum({ id: a.id, allowed: a.allowed }).catch(() => {}); }
+      logAct(`把「${m.name}」移出相簿`); closeModal(); render(); toast('已移除'); } catch { toast('移除失敗'); } },
+};
+document.addEventListener('click', e => { const el = e.target.closest('[data-act]'); if (!el) return; const f = ACT[el.dataset.act]; if (f) { e.preventDefault(); f(el, e); } });
+document.addEventListener('change', e => {
+  const el = e.target;
+  if (el.id === 'msSel') { $('#msCustom').style.display = el.value === '__c' ? '' : 'none'; return; }
+  if (el.id === 'mRole') { $('#mRoleHint').textContent = ROLES[el.value].can; return; }
+  if (el.dataset.change === 'bigText') { document.documentElement.classList.toggle('big', el.checked); LS.set('bigText', el.checked); return; }
+  if (el.dataset.change === 'demoUser') { S.be.setUser(el.value); S.tab = 'timeline'; S.albumId = null; S.adminView = null; loadAll(true).then(() => toast(`現在以「${memberName(el.value)}」的身分預覽`)); }
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.id === 'cmtIn') ACT.addCmt();
+  if (!S.lb) return;
+  if (e.key === 'ArrowLeft') lbGo(-1); if (e.key === 'ArrowRight') lbGo(1); if (e.key === 'Escape' && !$('#modal')) closeLB();
+});
+
+boot();
+</script>
+</body>
+</html>
