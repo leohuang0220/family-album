@@ -429,7 +429,7 @@ async function prepareFile(file) {
 /* =====================================================================
    ② 資料後端：Google Apps Script ＋ 你的 Google 雲端硬碟（零費用）
    ===================================================================== */
-const TOKEN_KEY = 'albumIdToken';
+const TOKEN_KEY = 'albumIdToken', SESSION_KEY = 'albumSession';
 const jwtPayload = t => { try { return JSON.parse(decodeURIComponent(escape(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))))); } catch { return {}; } };
 const jwtExp = t => (jwtPayload(t).exp || 0) * 1000;
 async function waitGIS() {
@@ -441,7 +441,9 @@ const toB64 = blob => new Promise((res, rej) => { const fr = new FileReader(); f
 const mkErr = code => { const e = new Error(code); e.code = code; return e; };
 
 function makeGAS(url, clientId) {
-  let token = LS.get(TOKEN_KEY, ''), waiters = [];
+  let token = LS.get(TOKEN_KEY, ''), session = LS.get(SESSION_KEY, ''), waiters = [];
+  const setSession = v => { session = v || ''; LS.set(SESSION_KEY, session); };
+  const sessEmail = () => { try { return JSON.parse(atob(session.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).e || ''; } catch { return ''; } };
   const cache = new Map(), inflight = new Map(), pending = new Map();
   let timer = null;
   const valid = () => token && jwtExp(token) - Date.now() > 90e3;
@@ -455,12 +457,15 @@ function makeGAS(url, clientId) {
     return t;
   }
   async function call(action, args = {}, retry = true) {
-    const t = await ensureToken();
+    const useSession = !!session;
+    const auth = useSession ? { session } : { token: await ensureToken() };
     let r;
-    try { r = await fetch(url, { method: 'POST', body: JSON.stringify({ action, token: t, ...args }) }); }
+    try { r = await fetch(url, { method: 'POST', body: JSON.stringify({ action, ...auth, ...args }) }); }
     catch { throw mkErr('NETWORK'); }
     const j = await r.json().catch(() => ({ ok: false, error: 'BAD_RESPONSE' }));
+    if (j.session) setSession(j.session);
     if (!j.ok) {
+      if (j.error === 'SESSION_INVALID' && useSession) { setSession(''); return call(action, args, retry); }
       if (j.error === 'TOKEN_INVALID' && retry) { token = ''; LS.set(TOKEN_KEY, ''); return call(action, args, false); }
       const e = mkErr(j.error); e.email = j.email; throw e;
     }
@@ -521,18 +526,20 @@ function makeGAS(url, clientId) {
   return {
     demo: false,
     init(cb) {
+      if (session) cb(true);   // 有保持登入的憑證：不用等 Google 登入元件，直接進相簿
       waitGIS().then(() => {
         google.accounts.id.initialize({
           client_id: clientId, auto_select: true, cancel_on_tap_outside: false, use_fedcm_for_prompt: true,
           callback: r => { gotToken(r.credential); if (!S.me) cb(true); },
         });
+        if (session) return;   // 已經用保持登入的憑證進來了
         if (valid()) cb(true); else { cb(false); google.accounts.id.prompt(); }
       }).catch(e => { app.innerHTML = `<div class="center"><div class="card">${esc(e.message)}</div></div>`; });
     },
     renderButton(el) { waitGIS().then(() => google.accounts.id.renderButton(el, { theme: 'filled_blue', size: 'large', shape: 'pill', text: 'signin_with', locale: 'zh-TW', width: 280 })).catch(() => {}); },
     async signIn() { await waitGIS(); google.accounts.id.prompt(); },
-    async signOut() { token = ''; LS.set(TOKEN_KEY, ''); cache.forEach(u => URL.revokeObjectURL(u)); cache.clear(); try { await caches.delete(MC); } catch {} try { google.accounts.id.disableAutoSelect(); } catch {} },
-    currentEmail() { return jwtPayload(token).email || ''; },
+    async signOut() { token = ''; LS.set(TOKEN_KEY, ''); setSession(''); cache.forEach(u => URL.revokeObjectURL(u)); cache.clear(); try { await caches.delete(MC); } catch {} try { google.accounts.id.disableAutoSelect(); } catch {} },
+    currentEmail() { return jwtPayload(token).email || sessEmail(); },
     bootstrap() { return call('bootstrap'); },
     setConfig(c) { return call('setConfig', { cfg: c }); },
     saveMember(m) { return call('saveMember', { member: m }); },
