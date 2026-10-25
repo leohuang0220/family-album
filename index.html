@@ -251,6 +251,21 @@ header.top{gap:.65rem}
 @media (min-width:1500px){
   .grid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
 }
+
+.tl-tools{display:flex;justify-content:flex-end;margin:.2rem 0 -.4rem}
+.tile.selm .ck{position:absolute;top:6px;right:6px;width:24px;height:24px;border-radius:50%;border:2px solid #fff;background:rgba(29,42,53,.25);display:grid;place-items:center;color:#fff;box-shadow:0 1px 4px rgba(0,0,0,.25)}
+.tile.selm.on .ck{background:var(--accent);border-color:#fff}
+.tile.selm.on img{transform:scale(.88);border-radius:6px}
+.tile.selm img{transition:transform .15s}
+.tile.selm.on{outline:3px solid var(--accent);outline-offset:-3px}
+.tile.selm.no{opacity:.45}
+.tile .keep{top:6px;left:6px;background:var(--ok);color:#fff}
+.selbar{position:fixed;left:0;right:0;bottom:0;z-index:40;display:flex;align-items:center;gap:.5rem;background:var(--surface);border-top:1px solid var(--line);box-shadow:0 -6px 20px rgba(29,42,53,.08);padding:.7rem 1rem calc(.7rem + env(safe-area-inset-bottom))}
+.selbar .btn[disabled]{opacity:.45}
+.dup-sum{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;justify-content:space-between;margin-bottom:1rem}
+.dup-g .grid{margin-bottom:.4rem}
+.pbar{height:6px;border-radius:3px;background:var(--line);overflow:hidden;margin-top:.5rem}.pbar i{display:block;height:100%;background:var(--accent);transition:width .2s}
+@media (min-width:960px){.selbar{left:92px}}
 </style>
 </head>
 <body>
@@ -567,6 +582,7 @@ function makeGAS(url, clientId) {
     updatePhoto(p, patch) { return call('updatePhoto', { id: p.id, patch }); },
     async setThumb(p, blob, ph) { const r = await call('setThumb', { id: p.id, b64: await toB64(blob), ph }); seed(p.id, 'thumb', blob, r.tv); return r; },
     fixVideoThumbs() { return call('fixVideoThumbs'); },
+    bulkState(ids, state) { return call('bulkState', { ids, state }); },
     toggleLike(p, email, on) { return call('like', { id: p.id, on }); },
     listComments(p) { return call('comments', { id: p.id }); },
     addComment(p, c) { return call('addComment', { id: p.id, text: c.text }); },
@@ -656,6 +672,8 @@ function makeDemo() {
     async getMediaURL(p, which) { const src = photos.find(x => x.id === p.id); if (!src) throw new Error('gone'); return src._url[which] || src._url.disp || src._url.full || src._url.thumb; },
     async updatePhoto(p, patch) { Object.assign(photos.find(x => x.id === p.id), patch); },
     async fixVideoThumbs() { return { fixed: 0, left: 0, photos: [] }; },
+    async bulkState(ids, state) { const me = members.find(m => m.email === current), out = [];
+      photos.forEach(p => { if (ids.includes(p.id) && (me.role === 'admin' || p.uploader === current)) { p.state = state; out.push(p.id); } }); return { ids: out }; },
     async setThumb(p, blob, ph) { const x = photos.find(y => y.id === p.id); x._url.thumb = URL.createObjectURL(blob); x.ph = ph; x.thumbOk = true; return { ...x }; },
     async toggleLike(p, email, on) { const x = photos.find(y => y.id === p.id); x.likes = on ? [...new Set([...x.likes, email])] : x.likes.filter(e => e !== email); },
     async listComments(p) { return clone(comments[p.albumId + '/' + p.id] || []); },
@@ -685,6 +703,7 @@ const ICONS = {
   eyeOff: '<path d="M3 12s3.5-6 9-6c1.6 0 3 .5 4.3 1.2M21 12s-3.5 6-9 6c-1.6 0-3-.5-4.3-1.2M4 4l16 16"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
   eye: '<path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"/><circle cx="12" cy="12" r="2.8"/>',
   image: '<rect x="3.5" y="4.5" width="17" height="15" rx="3"/><circle cx="9" cy="10" r="1.6"/><path d="M4 17l5-4.5 3.5 3L16 12l4 4"/>',
+  copy: '<rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>',
   close: '<path d="M6 6l12 12M18 6L6 18"/>',
   back: '<path d="M14.5 5.5L8 12l6.5 6.5"/>',
   next: '<path d="M9.5 5.5L16 12l-6.5 6.5"/>',
@@ -836,6 +855,11 @@ function tile(p, list, extra = '') {
   const isNew = p.createdAt > S.prevSeen && p.uploader !== S.me.email, likes = (p.likes || []).length;
   const ph = p.ph ? ` style="background-image:url('${p.ph}')"` : '';
   if (p._local) return `<button class="tile up" data-act="upInfo" data-key="${p.albumId}/${p.id}" aria-label="上傳中"${ph}><img src="${p._url.thumb}" class="ok" alt=""><span class="upbar"><i style="width:${Math.max(4, Math.round((p._prog || 0) * 100))}%"></i></span></button>`;
+  if (S.sel) {
+    const k = p.albumId + '/' + p.id, can = canDel(p), on = S.sel.has(k);
+    return `<button class="tile selm${on ? ' on' : ''}${can ? '' : ' no'}" data-act="selToggle" data-key="${k}" aria-pressed="${on}" aria-label="${can ? '選取這張' : '不能刪除這張'}"${ph}>
+      <img data-media="${p.albumId}/${p.id}/thumb" alt="">${p.kind === 'video' ? `<span class="b vid">${ic('play', 11, 'play')}</span>` : ''}<span class="ck">${on ? ic('check', 16) : ''}</span></button>`;
+  }
   return `<button class="tile" data-act="open" data-key="${p.albumId}/${p.id}" data-list="${list}" aria-label="查看照片"${ph}>
     <img data-media="${p.albumId}/${p.id}/thumb" alt="">
     ${isNew ? '<span class="b new">新</span>' : ''}${p.milestone ? `<span class="b ms">${ic('star', 12)}</span>` : ''}
@@ -862,11 +886,13 @@ function viewTimeline() {
   const mem = !S.albumId ? memories() : [];
   let html = bc + head + (newCount ? `<div class="note">${ic('bell', 17)}上次之後新增了 ${newCount} 項</div>` : '');
   if (mem.length) html += `<section class="mem"><h2>${ic('clockBack', 19)}回憶</h2><div class="strip">${mem.map(({ p, diff }) => tile(p, 'memories', `<span class="lab">${diff} 個月前</span>`)).join('')}</div></section>`;
+  if (!S.sel && ps.some(canDel)) html += `<div class="tl-tools"><button class="chip" data-act="selStart">${ic('check', 14)}選取多張</button></div>`;
   const groups = new Map();
   ps.forEach(p => { const d = new Date(p.takenAt), k = d.getFullYear() * 100 + d.getMonth(); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(p); });
   groups.forEach((list, k) => {
     const y = Math.floor(k / 100), m = k % 100 + 1, ageTxt = ageHead(list[0].takenAt);
-    html += `<div class="month">${ageTxt ? `<div><div class="age">${esc(ageTxt)}</div><div class="date">${y} 年 ${m} 月</div></div>` : `<div class="age">${y} 年 ${m} 月</div>`}<span class="cnt">${list.length} 項</span></div><div class="grid">${list.map(p => tile(p, 'timeline')).join('')}</div>`;
+    const selAll = S.sel ? `<button class="chip" data-act="selMonth" data-k="${k}">全選這個月</button>` : `<span class="cnt">${list.length} 項</span>`;
+    html += `<div class="month">${ageTxt ? `<div><div class="age">${esc(ageTxt)}</div><div class="date">${y} 年 ${m} 月</div></div>` : `<div class="age">${y} 年 ${m} 月</div>`}${selAll}</div><div class="grid">${list.map(p => tile(p, 'timeline')).join('')}</div>`;
   });
   return html;
 }
@@ -927,6 +953,7 @@ function viewAdmin() {
         ${v === 'trash' ? `<button class="btn sm danger" data-act="purge" data-key="${p.albumId}/${p.id}">永久刪除</button>` : ''}
       </div></div>`).join('')}</div>` : '<div class="empty">這裡是空的</div>'}`;
   }
+  if (v === 'dups') return `${back}<h3 style="display:flex;gap:.4rem;align-items:center">${ic('copy', 20)}找重複照片</h3><p class="hint">比對所有照片的畫面，找出重複上傳或幾乎一樣的照片。刪除的照片會先進回收桶，30 天內可以還原。</p><div id="dupBox"></div>`;
   if (v === 'log') return `${back}<h3 style="display:flex;gap:.4rem;align-items:center">${ic('log', 20)}動態紀錄</h3><div class="card" id="logBox"><div class="spin"></div></div>`;
   return `
   <div class="card"><div class="row"><h3 style="margin:0">${ic('users', 20)}家人成員（${mem.length}）</h3><span class="sp"></span><button class="btn sm" data-act="editMember">${ic('plus', 16)}邀請家人</button></div>
@@ -941,7 +968,8 @@ function viewAdmin() {
   <div class="card"><h3>${ic('shield', 20)}隱私與管理</h3>
     <div class="row"><button class="btn ghost sm" data-act="adminView" data-v="hidden">${ic('eyeOff', 16)}隱藏的照片（${hidden.length}）</button>
     <button class="btn ghost sm" data-act="adminView" data-v="trash">${ic('trash', 16)}回收桶（${trash.length}）</button>
-    <button class="btn ghost sm" data-act="adminView" data-v="log">${ic('log', 16)}動態紀錄</button></div>
+    <button class="btn ghost sm" data-act="adminView" data-v="log">${ic('log', 16)}動態紀錄</button>
+    <button class="btn ghost sm" data-act="adminView" data-v="dups">${ic('copy', 16)}找重複照片</button></div>
     <p class="hint" style="margin-top:.8rem">已使用 ${fmtBytes(totalBytes)}（${S.photos.length} 個項目），存在你的 Google 雲端硬碟「寶寶家庭相簿」資料夾，不另外收費。</p>
     <p class="hint" style="margin-bottom:0">上傳時會保留完整解析度，並自動移除照片裡的 GPS 位置，避免家裡地址外流。</p></div>
   ${bigTextCard()}
@@ -1260,6 +1288,100 @@ async function fixVideoThumb(p, url) {
     document.querySelectorAll(`img[data-media="${p.albumId}/${p.id}/thumb"]`).forEach(i => { i.src = URL.createObjectURL(f.blob); });
   } catch (e) { console.warn('thumb fix', e); } finally { p._fixing = false; }
 }
+/* ---------- 多選刪除 ---------- */
+const canDel = p => !p._local && p.state !== 'trash' && (isAdmin() || (p.uploader === S.me.email && p.state === 'normal'));
+function selStart(firstKey) { S.sel = new Set(firstKey ? [firstKey] : []); render(); drawSelBar(); }
+function selEnd() { S.sel = null; $('#selBar')?.remove(); render(); }
+function drawSelBar() {
+  let el = $('#selBar');
+  if (!S.sel) { el?.remove(); return; }
+  if (!el) { el = document.createElement('div'); el.id = 'selBar'; el.className = 'selbar'; document.body.appendChild(el); }
+  const n = S.sel.size;
+  el.innerHTML = `<button class="btn ghost sm" data-act="selCancel">取消</button><b>已選 ${n} 張</b><span class="sp"></span>
+    ${isAdmin() ? `<button class="btn ghost sm" data-act="selDo" data-s="hidden" ${n ? '' : 'disabled'}>${ic('eyeOff', 16)}隱藏</button>` : ''}
+    <button class="btn danger sm" data-act="selDo" data-s="trash" ${n ? '' : 'disabled'}>${ic('trash', 16)}刪除</button>`;
+}
+async function bulkApply(keys, state) {
+  const ps = keys.map(k => keyP(k)).filter(Boolean).filter(canDel);
+  if (!ps.length) return 0;
+  const r = await S.be.bulkState(ps.map(p => p.id), state), done = new Set(r.ids || []);
+  ps.forEach(p => { if (!done.has(p.id)) return; p.state = state; if (state === 'trash') p.trashedAt = Date.now(); });
+  if (!isAdmin() && state === 'trash') S.photos = S.photos.filter(p => !(done.has(p.id)));
+  const n = done.size, word = state === 'trash' ? '移到回收桶' : '設為隱藏';
+  if (n) logAct(`把 ${n} 個檔案${word}`);
+  return n;
+}
+// 長按照片直接進入多選
+let lpTimer = null, lpFired = false, lpUntil = 0;
+document.addEventListener('pointerdown', e => {
+  const t = e.target.closest('.tile[data-act="open"]'); if (!t || S.sel) return;
+  lpFired = false; clearTimeout(lpTimer);
+  lpTimer = setTimeout(() => { const p = keyP(t.dataset.key); if (p && canDel(p)) { lpFired = true; try { navigator.vibrate?.(15); } catch {} selStart(t.dataset.key); } }, 550);
+});
+['pointerup', 'pointercancel', 'pointermove'].forEach(ev => document.addEventListener(ev, e => { if (ev === 'pointermove' && Math.abs(e.movementX) + Math.abs(e.movementY) < 4) return; clearTimeout(lpTimer);
+  if (ev !== 'pointermove' && lpFired) { lpFired = false; lpUntil = Date.now() + 450; } }, true));
+document.addEventListener('click', e => { if ((lpFired || Date.now() < lpUntil) && e.target.closest('.tile')) { lpFired = false; lpUntil = 0; e.stopPropagation(); e.preventDefault(); } }, true);
+document.addEventListener('contextmenu', e => { if (e.target.closest('.tile')) e.preventDefault(); });
+
+/* ---------- 找重複照片 ---------- */
+// 每張照片算一個 12×12 的小色塊指紋；重新上傳、轉檔過的同一張照片指紋幾乎一樣，連拍的不同張則差很多
+const DH_KEY = 'dsig:v2';
+let dhCache = null, dhBytes = new Map();
+const dhGet = () => dhCache || (dhCache = LS.get(DH_KEY, {}));
+async function dhashOf(p) {
+  const c = dhGet(); if (c[p.id]) return c[p.id];
+  const url = await S.be.getMediaURL(p, 'thumb');
+  const img = new Image(); img.src = url; await img.decode();
+  const N = 12, cv = document.createElement('canvas'); cv.width = cv.height = N; const g = cv.getContext('2d', { willReadFrequently: true });
+  g.drawImage(img, 0, 0, N, N); const d = g.getImageData(0, 0, N, N).data, out = new Uint8Array(N * N * 3);
+  for (let i = 0; i < N * N; i++) { out[i * 3] = d[i * 4]; out[i * 3 + 1] = d[i * 4 + 1]; out[i * 3 + 2] = d[i * 4 + 2]; }
+  const v = { s: btoa(String.fromCharCode(...out)), r: +(img.naturalWidth / img.naturalHeight).toFixed(3) };
+  c[p.id] = v; return v;
+}
+const sigBytes = v => { if (!dhBytes.has(v.s)) dhBytes.set(v.s, Uint8Array.from(atob(v.s), ch => ch.charCodeAt(0))); return dhBytes.get(v.s); };
+function sigDist(a, b) {   // 平均每個顏色值差多少（0–255）；比例差太多直接算不同
+  if (!a || !b || Math.abs(a.r - b.r) / Math.max(a.r, b.r) > 0.03) return 999;
+  const x = sigBytes(a), y = sigBytes(b); let sum = 0;
+  for (let i = 0; i < x.length; i++) sum += Math.abs(x[i] - y[i]);
+  return sum / x.length;
+}
+const keepScore = p => (p.w || 0) * (p.h || 0) + ((p.likes || []).length + (p.commentCount || 0) + (p.caption ? 1 : 0) + (p.milestone ? 2 : 0)) * 1e9 - (p.createdAt || 0) / 1e13;
+async function findDups() {
+  const box = $('#dupBox'); if (!box) return;
+  const ps = S.photos.filter(p => !p._local && (p.state === 'normal' || p.state === 'hidden'));
+  let done = 0; const fail = new Set();
+  const prog = () => { const b = $('#dupBox'); if (b) b.innerHTML = `<div class="hint">正在比對縮圖 ${done}/${ps.length}…</div><div class="pbar"><i style="width:${ps.length ? done / ps.length * 100 : 100}%"></i></div>`; };
+  prog();
+  const queue = ps.slice(), worker = async () => { while (queue.length) { const p = queue.shift(); try { await dhashOf(p); } catch { fail.add(p.id); } done++; if (done % 6 === 0) prog(); } };
+  await Promise.all([1, 2, 3, 4, 5, 6].map(worker));
+  LS.set(DH_KEY, dhGet());
+  // 分組：同一個原始檔、或畫面幾乎一樣
+  const parent = ps.map((_, i) => i), find = i => parent[i] === i ? i : (parent[i] = find(parent[i])), join = (a, b) => { parent[find(a)] = find(b); };
+  const H = ps.map(p => dhGet()[p.id]);
+  for (let i = 0; i < ps.length; i++) for (let j = i + 1; j < ps.length; j++) {
+    const a = ps[i], b = ps[j];
+    if (a.kind !== b.kind) continue;
+    const same = a.srcName && a.srcName === b.srcName && a.srcSize && a.srcSize === b.srcSize;
+    const close = sigDist(H[i], H[j]) <= 5 && (a.kind !== 'video' || Math.abs((a.duration || 0) - (b.duration || 0)) <= 1);
+    if (same || close) join(i, j);
+  }
+  const groups = new Map(); ps.forEach((p, i) => { const r = find(i); if (!groups.has(r)) groups.set(r, []); groups.get(r).push(p); });
+  S.dups = [...groups.values()].filter(g => g.length > 1).map(g => g.sort((a, b) => keepScore(b) - keepScore(a)));
+  S.dupSel = new Set(); S.dups.forEach(g => g.slice(1).forEach(p => S.dupSel.add(p.albumId + '/' + p.id)));
+  drawDups(fail.size);
+}
+function drawDups(failed = 0) {
+  const box = $('#dupBox'); if (!box) return;
+  if (!S.dups.length) { box.innerHTML = `<div class="empty" style="padding:2rem 1rem">${ic('check', 40)}<p>沒有找到重複的照片</p>${failed ? `<p class="hint">有 ${failed} 張縮圖讀不到，沒有比對。</p>` : ''}</div>`; return; }
+  const n = S.dupSel.size;
+  box.innerHTML = `<div class="dup-sum"><span>找到 <b>${S.dups.length}</b> 組重複，已幫你勾好多出來的 <b>${n}</b> 張（每組保留畫質最好的一張）</span>
+      <button class="btn danger sm" data-act="dupDelete" ${n ? '' : 'disabled'}>${ic('trash', 16)}刪除勾選的 ${n} 張</button></div>
+    ${S.dups.map(g => `<div class="card dup-g"><div class="grid">${g.map((p, i) => { const k = p.albumId + '/' + p.id, on = S.dupSel.has(k);
+      return `<button class="tile selm${on ? ' on' : ''}" data-act="dupToggle" data-key="${k}" aria-pressed="${on}"${p.ph ? ` style="background-image:url('${p.ph}')"` : ''}><img data-media="${k}/thumb" alt=""><span class="ck">${on ? ic('check', 16) : ''}</span>${!on ? '<span class="b keep">保留</span>' : ''}</button>`; }).join('')}</div>
+      <div class="hint">${fmtDate(g[0].takenAt)} · ${esc(albumById(g[0].albumId)?.name || '')}${g[0].w ? ` · 最大 ${g[0].w}×${g[0].h}` : ''}</div></div>`).join('')}
+    ${failed ? `<p class="hint">有 ${failed} 張縮圖讀不到，沒有比對。</p>` : ''}`;
+  observeMedia(box);
+}
 // 先把前後兩張的大圖抓好，滑過去就不用等
 function prefetchNear() {
   const L = S.lb; if (!L) return;
@@ -1441,7 +1563,7 @@ const ACT = {
   refresh: () => loadAll(true).then(() => toast('已更新')),
   signOut: async () => { await S.be.signOut(); if (!S.be.demo) location.reload(); },
   copy: async el => { try { await navigator.clipboard.writeText(el.dataset.text); toast('已複製'); } catch { toast('請長按文字手動複製'); } },
-  tab: el => { S.tab = el.dataset.tab; S.adminView = null; if (S.tab !== 'timeline') S.albumId = null; render(); scrollTo(0, 0); },
+  tab: el => { if (S.sel) { S.sel = null; $('#selBar')?.remove(); } S.tab = el.dataset.tab; S.adminView = null; if (S.tab !== 'timeline') S.albumId = null; render(); scrollTo(0, 0); },
   openAlbum: el => { S.albumId = el.dataset.id; S.tab = 'timeline'; render(); scrollTo(0, 0); },
   clearAlbum: () => { S.albumId = null; render(); },
   feed: () => openFeed(),
@@ -1452,6 +1574,19 @@ const ACT = {
   upDismiss: () => { UQ.failed = []; UQ.total = 0; drawUpPill(); },
   closeModal: () => closeModal(),
   open: el => { closeModal(); openLB(el.dataset.key, el.dataset.list); },
+  selStart: () => selStart(),
+  selCancel: () => selEnd(),
+  selToggle: el => { const k = el.dataset.key, p = keyP(k); if (!p || !canDel(p)) return toast(isAdmin() ? '這張不能選' : '只能刪除自己上傳的照片');
+    S.sel.has(k) ? S.sel.delete(k) : S.sel.add(k); const on = S.sel.has(k); el.classList.toggle('on', on); el.setAttribute('aria-pressed', on); el.querySelector('.ck').innerHTML = on ? ic('check', 16) : ''; drawSelBar(); },
+  selMonth: el => { const k = Number(el.dataset.k); visiblePhotos().filter(p => { const d = new Date(p.takenAt); return d.getFullYear() * 100 + d.getMonth() === k && canDel(p); })
+    .forEach(p => S.sel.add(p.albumId + '/' + p.id)); render(); drawSelBar(); },
+  selDo: async el => { const st = el.dataset.s, keys = [...S.sel]; if (!keys.length) return;
+    if (st === 'trash' && !confirm(`把 ${keys.length} 張移到回收桶？（30 天內可還原）`)) return;
+    el.disabled = true; try { const n = await bulkApply(keys, st); toast(st === 'trash' ? `已把 ${n} 張移到回收桶` : `已隱藏 ${n} 張`); selEnd(); } catch (e) { el.disabled = false; toast('失敗：' + (e.code || '')); } },
+  dupToggle: el => { const k = el.dataset.key; S.dupSel.has(k) ? S.dupSel.delete(k) : S.dupSel.add(k);
+    const g = S.dups.find(g => g.some(p => p.albumId + '/' + p.id === k)); if (g && g.every(p => S.dupSel.has(p.albumId + '/' + p.id))) toast('這組全部都勾了，整組都會被刪除'); drawDups(); },
+  dupDelete: async el => { const keys = [...S.dupSel]; if (!keys.length || !confirm(`把 ${keys.length} 張重複照片移到回收桶？（30 天內可還原）`)) return;
+    el.disabled = true; try { const n = await bulkApply(keys, 'trash'); toast(`已把 ${n} 張重複照片移到回收桶`); findDups(); } catch (e) { el.disabled = false; toast('失敗：' + (e.code || '')); } },
   lbClose: () => closeLB(),
   lbGo: el => lbGo(+el.dataset.d),
   download: () => downloadCur(),
@@ -1475,7 +1610,7 @@ const ACT = {
   restore: async el => { const p = keyP(el.dataset.key); try { await setState(p, 'normal', '還原了 1 個檔案'); render(); } catch { toast('失敗'); } },
   purge: async el => { const p = keyP(el.dataset.key); if (!confirm('永久刪除後無法復原，確定嗎？')) return;
     try { await S.be.deleteForever(p); S.photos = S.photos.filter(x => x !== p); logAct('永久刪除了 1 個檔案'); render(); } catch { toast('刪除失敗'); } },
-  adminView: el => { S.adminView = el.dataset.v || null; render(); scrollTo(0, 0); if (S.adminView === 'log') showLog(); },
+  adminView: el => { S.adminView = el.dataset.v || null; render(); scrollTo(0, 0); if (S.adminView === 'log') showLog(); if (S.adminView === 'dups') findDups(); },
   babyEdit: () => openBabyEdit(false),
   babyCancel: () => { closeModal(); const f = S._after; S._after = null; f && f(); },
   saveBaby: async el => {
