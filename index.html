@@ -377,6 +377,13 @@ function tinyPh(src, w, h) {
   try { const s = 24 / Math.max(w || 1, h || 1), c = document.createElement('canvas'); c.width = Math.max(1, Math.round((w || 24) * s)); c.height = Math.max(1, Math.round((h || 24) * s));
     c.getContext('2d').drawImage(src, 0, 0, c.width, c.height); return c.toDataURL('image/jpeg', 0.5); } catch { return ''; }
 }
+// 找重複照片用的 12×12 色塊指紋（約 600 字），上傳時順便算好
+function sigOf(src, w, h) {
+  try { const N = 12, c = document.createElement('canvas'); c.width = c.height = N; const g = c.getContext('2d', { willReadFrequently: true });
+    g.drawImage(src, 0, 0, N, N); const d = g.getImageData(0, 0, N, N).data, out = new Uint8Array(N * N * 3);
+    for (let i = 0; i < N * N; i++) { out[i * 3] = d[i * 4]; out[i * 3 + 1] = d[i * 4 + 1]; out[i * 3 + 2] = d[i * 4 + 2]; }
+    return { s: btoa(String.fromCharCode(...out)), r: +((w || 1) / (h || 1)).toFixed(3) }; } catch { return null; }
+}
 function resize(src, w, h, max, q) {
   const s = Math.min(1, max / Math.max(w, h)); const c = document.createElement('canvas');
   c.width = Math.round(w * s); c.height = Math.round(h * s);
@@ -410,12 +417,12 @@ async function grabFrame(src) {
       if (sum / (n * 3) > 14) break;   // 不是一片黑就用這張
     }
     const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', .82));
-    return { blob, ph: tinyPh(c, c.width, c.height), w, h, duration: Math.round(dur) };
+    return { blob, ph: tinyPh(c, c.width, c.height), sig: sigOf(c, w, h), w, h, duration: Math.round(dur) };
   } finally { v.removeAttribute('src'); v.load(); }
 }
 async function videoPoster(file) {
   const url = URL.createObjectURL(file);
-  try { const f = await grabFrame(url); return { poster: f.blob, ph: f.ph, w: f.w, h: f.h, duration: f.duration }; }
+  try { const f = await grabFrame(url); return { poster: f.blob, ph: f.ph, sig: f.sig, w: f.w, h: f.h, duration: f.duration }; }
   catch {
     const c = document.createElement('canvas'); c.width = c.height = 480; const g = c.getContext('2d');
     g.fillStyle = '#DCE8F0'; g.fillRect(0, 0, 480, 480);
@@ -427,18 +434,18 @@ async function videoPoster(file) {
 async function prepareFile(file) {
   if (file.type.startsWith('video/')) {
     if (file.size > MAX_VIDEO) throw new Error('影片超過 200MB，請先剪短');
-    const { poster, ph, w, h, duration, noFrame } = await videoPoster(file);
+    const { poster, ph, sig, w, h, duration, noFrame } = await videoPoster(file);
     const ext = (file.name.split('.').pop() || 'mp4').toLowerCase().replace(/[^a-z0-9]/g, '') || 'mp4';
     const vid = new Blob([file], { type: file.type || 'video/mp4' });
-    return { kind: 'video', origName: file.name, takenAt: file.lastModified || Date.now(), w, h, duration, ph, noFrame, parts: [['thumb', poster, 'thumb.jpg'], ['full', vid, 'video.' + ext]] };
+    return { kind: 'video', origName: file.name, takenAt: file.lastModified || Date.now(), w, h, duration, ph, sig, noFrame, parts: [['thumb', poster, 'thumb.jpg'], ['full', vid, 'video.' + ext]] };
   }
   const takenAt = (await exifDate(file)) || file.lastModified || Date.now();
   const img = await loadImg(file);
   const w = img.naturalWidth, h = img.naturalHeight;
   // 原檔以完整解析度重新存檔（移除 GPS），另做顯示用與縮圖
-  const thumb = await resize(img, w, h, 360, .75), disp = await resize(img, w, h, 1600, .85), full = await resize(img, w, h, 6000, .92), ph = tinyPh(img, w, h);
+  const thumb = await resize(img, w, h, 360, .75), disp = await resize(img, w, h, 1600, .85), full = await resize(img, w, h, 6000, .92), ph = tinyPh(img, w, h), sig = sigOf(img, w, h);
   URL.revokeObjectURL(img.src);
-  return { kind: 'image', origName: file.name.replace(/\.[^.]+$/, '') + '.jpg', takenAt, w, h, ph, parts: [['thumb', thumb, 'thumb.jpg'], ['disp', disp, 'disp.jpg'], ['full', full, 'full.jpg']] };
+  return { kind: 'image', origName: file.name.replace(/\.[^.]+$/, '') + '.jpg', takenAt, w, h, ph, sig, parts: [['thumb', thumb, 'thumb.jpg'], ['disp', disp, 'disp.jpg'], ['full', full, 'full.jpg']] };
 }
 
 /* =====================================================================
@@ -583,6 +590,8 @@ function makeGAS(url, clientId) {
     async setThumb(p, blob, ph) { const r = await call('setThumb', { id: p.id, b64: await toB64(blob), ph }); seed(p.id, 'thumb', blob, r.tv); return r; },
     fixVideoThumbs() { return call('fixVideoThumbs'); },
     bulkState(ids, state) { return call('bulkState', { ids, state }); },
+    sigs() { return call('sigs'); },
+    saveSigs(items) { return call('saveSigs', { items }); },
     toggleLike(p, email, on) { return call('like', { id: p.id, on }); },
     listComments(p) { return call('comments', { id: p.id }); },
     addComment(p, c) { return call('addComment', { id: p.id, text: c.text }); },
@@ -672,6 +681,8 @@ function makeDemo() {
     async getMediaURL(p, which) { const src = photos.find(x => x.id === p.id); if (!src) throw new Error('gone'); return src._url[which] || src._url.disp || src._url.full || src._url.thumb; },
     async updatePhoto(p, patch) { Object.assign(photos.find(x => x.id === p.id), patch); },
     async fixVideoThumbs() { return { fixed: 0, left: 0, photos: [] }; },
+    async sigs() { return {}; },
+    async saveSigs() { return { saved: 0 }; },
     async bulkState(ids, state) { const me = members.find(m => m.email === current), out = [];
       photos.forEach(p => { if (ids.includes(p.id) && (me.role === 'admin' || p.uploader === current)) { p.state = state; out.push(p.id); } }); return { ids: out }; },
     async setThumb(p, blob, ph) { const x = photos.find(y => y.id === p.id); x._url.thumb = URL.createObjectURL(blob); x.ph = ph; x.thumbOk = true; return { ...x }; },
@@ -953,7 +964,9 @@ function viewAdmin() {
         ${v === 'trash' ? `<button class="btn sm danger" data-act="purge" data-key="${p.albumId}/${p.id}">永久刪除</button>` : ''}
       </div></div>`).join('')}</div>` : '<div class="empty">這裡是空的</div>'}`;
   }
-  if (v === 'dups') return `${back}<h3 style="display:flex;gap:.4rem;align-items:center">${ic('copy', 20)}找重複照片</h3><p class="hint">比對所有照片的畫面，找出重複上傳或幾乎一樣的照片。刪除的照片會先進回收桶，30 天內可以還原。</p><div id="dupBox"></div>`;
+  if (v === 'dups') return `${back}<h3 style="display:flex;gap:.4rem;align-items:center">${ic('copy', 20)}找重複照片</h3><p class="hint">比對照片畫面，找出重複上傳或轉檔過的同一張。刪除的照片會先進回收桶，30 天內可以還原。</p>
+    <label class="f" for="dupScope">檢查範圍</label><select id="dupScope" data-change="dupScope"><option value="">全部相簿</option>${S.albums.map(a => `<option value="${a.id}" ${S.dupScope === a.id ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}</select>
+    <div id="dupBox" style="margin-top:1rem"></div>`;
   if (v === 'log') return `${back}<h3 style="display:flex;gap:.4rem;align-items:center">${ic('log', 20)}動態紀錄</h3><div class="card" id="logBox"><div class="spin"></div></div>`;
   return `
   <div class="card"><div class="row"><h3 style="margin:0">${ic('users', 20)}家人成員（${mem.length}）</h3><span class="sp"></span><button class="btn sm" data-act="editMember">${ic('plus', 16)}邀請家人</button></div>
@@ -1194,6 +1207,7 @@ async function runUpload(job) {
     const meta = { kind: item.kind, takenAt: item.takenAt, createdAt: Date.now(), uploader: S.me.email, caption: job.caption, milestone: job.milestone, w: item.w, h: item.h, srcName: f.name, srcSize: f.size, ph: item.ph || '' };
     if (item.duration) meta.duration = item.duration;
     if (item.kind === 'video' && !item.noFrame) meta.thumbOk = true;
+    if (item.sig) { meta.sig = item.sig.s; meta.sr = item.sig.r; }
     const _url = {}; item.parts.forEach(([k, b]) => { if (k !== 'full') _url[k] = URL.createObjectURL(b); });
     local = { id: 'up' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), albumId: job.albumId, ...meta, state: 'normal', likes: [], commentCount: 0, _local: true, _url, _prog: 0 };
     S.photos.push(local); softRender();
@@ -1201,6 +1215,7 @@ async function runUpload(job) {
     const i = S.photos.indexOf(local); if (i >= 0) S.photos[i] = rec; else S.photos.push(rec);
     setTimeout(() => Object.values(_url).forEach(u => URL.revokeObjectURL(u)), 60000);
     UQ.ok++; UQ.okBy[job.albumId] = (UQ.okBy[job.albumId] || 0) + 1;
+    if (item.sig) { dhGet()[rec.id] = item.sig; LS.set(DH_KEY, dhGet()); }
     softRender();
   } catch (e) {
     console.error(e);
@@ -1348,22 +1363,36 @@ function sigDist(a, b) {   // 平均每個顏色值差多少（0–255）；比�
 const keepScore = p => (p.w || 0) * (p.h || 0) + ((p.likes || []).length + (p.commentCount || 0) + (p.caption ? 1 : 0) + (p.milestone ? 2 : 0)) * 1e9 - (p.createdAt || 0) / 1e13;
 async function findDups() {
   const box = $('#dupBox'); if (!box) return;
-  const ps = S.photos.filter(p => !p._local && (p.state === 'normal' || p.state === 'hidden'));
+  const run = S.dupRun = (S.dupRun || 0) + 1;
+  const ps = S.photos.filter(p => !p._local && (p.state === 'normal' || p.state === 'hidden') && (!S.dupScope || p.albumId === S.dupScope));
+  // 先拿雲端已經存好的指紋，只有缺的才下載縮圖來算
+  if (!S._sigsLoaded) { try { Object.assign(dhGet(), await S.be.sigs()); S._sigsLoaded = true; } catch {} }
+  const had = new Set(Object.keys(dhGet()));
   let done = 0; const fail = new Set();
-  const prog = () => { const b = $('#dupBox'); if (b) b.innerHTML = `<div class="hint">正在比對縮圖 ${done}/${ps.length}…</div><div class="pbar"><i style="width:${ps.length ? done / ps.length * 100 : 100}%"></i></div>`; };
+  const prog = () => { const b = $('#dupBox'); if (b && run === S.dupRun) b.innerHTML = `<div class="hint">正在比對縮圖 ${done}/${ps.length}…</div><div class="pbar"><i style="width:${ps.length ? done / ps.length * 100 : 100}%"></i></div>`; };
   prog();
   const queue = ps.slice(), worker = async () => { while (queue.length) { const p = queue.shift(); try { await dhashOf(p); } catch { fail.add(p.id); } done++; if (done % 6 === 0) prog(); } };
   await Promise.all([1, 2, 3, 4, 5, 6].map(worker));
   LS.set(DH_KEY, dhGet());
+  const fresh = ps.filter(p => !had.has(p.id) && dhGet()[p.id]).map(p => ({ id: p.id, ...dhGet()[p.id] }));
+  for (let i = 0; i < fresh.length; i += 300) S.be.saveSigs(fresh.slice(i, i + 300)).catch(() => {});
+  if (run !== S.dupRun) return;   // 中途換了檢查範圍
   // 分組：同一個原始檔、或畫面幾乎一樣
   const parent = ps.map((_, i) => i), find = i => parent[i] === i ? i : (parent[i] = find(parent[i])), join = (a, b) => { parent[find(a)] = find(b); };
   const H = ps.map(p => dhGet()[p.id]);
-  for (let i = 0; i < ps.length; i++) for (let j = i + 1; j < ps.length; j++) {
-    const a = ps[i], b = ps[j];
-    if (a.kind !== b.kind) continue;
-    const same = a.srcName && a.srcName === b.srcName && a.srcSize && a.srcSize === b.srcSize;
-    const close = sigDist(H[i], H[j]) <= 5 && (a.kind !== 'video' || Math.abs((a.duration || 0) - (b.duration || 0)) <= 1);
-    if (same || close) join(i, j);
+  const mean = H.map(v => { if (!v) return -99; const x = sigBytes(v); let t = 0; for (let i = 0; i < x.length; i++) t += x[i]; return t / x.length; });
+  const order = ps.map((_, i) => i).sort((i, j) => mean[i] - mean[j]);
+  // 同一個原始檔一定算重複
+  const bySrc = new Map(); ps.forEach((p, i) => { if (p.srcName && p.srcSize) { const k = p.kind + '|' + p.srcName + '|' + p.srcSize; if (bySrc.has(k)) join(i, bySrc.get(k)); else bySrc.set(k, i); } });
+  // 畫面比對：平均亮度差超過門檻的一定不像，所以排序後只比亮度相近的
+  for (let oi = 0; oi < order.length; oi++) {
+    const i = order[oi]; if (mean[i] < 0) continue;
+    for (let oj = oi + 1; oj < order.length; oj++) {
+      const j = order[oj]; if (mean[j] - mean[i] > 5) break;
+      const a = ps[i], b = ps[j];
+      if (a.kind !== b.kind) continue;
+      if (sigDist(H[i], H[j]) <= 5 && (a.kind !== 'video' || Math.abs((a.duration || 0) - (b.duration || 0)) <= 1)) join(i, j);
+    }
   }
   const groups = new Map(); ps.forEach((p, i) => { const r = find(i); if (!groups.has(r)) groups.set(r, []); groups.get(r).push(p); });
   S.dups = [...groups.values()].filter(g => g.length > 1).map(g => g.sort((a, b) => keepScore(b) - keepScore(a)));
@@ -1656,6 +1685,7 @@ document.addEventListener('change', e => {
   const el = e.target;
   if (el.id === 'msSel') { $('#msCustom').style.display = el.value === '__c' ? '' : 'none'; return; }
   if (el.id === 'mRole') { $('#mRoleHint').textContent = ROLES[el.value].can; return; }
+  if (el.dataset.change === 'dupScope') { S.dupScope = el.value; findDups(); return; }
   if (el.dataset.change === 'presence') { const v = el.checked; S.be.setConfig({ showPresence: v }).then(() => { S.cfg.showPresence = v; toast('已儲存'); }).catch(() => { el.checked = !v; toast('儲存失敗'); }); return; }
   if (el.id === 'bBirth' || el.name === 'bg' || el.name === 'avm') { refreshAvPrev(); return; }
   if (el.id === 'avFile') { const f = el.files[0]; if (f) cropAvatar(f).then(u => { avTmp = u; refreshAvPrev(); }).catch(() => toast('這張圖片讀不了，換一張試試')); return; }
