@@ -591,6 +591,9 @@ function makeGAS(url, clientId) {
     fixVideoThumbs() { return call('fixVideoThumbs'); },
     bulkState(ids, state) { return call('bulkState', { ids, state }); },
     sigs() { return call('sigs'); },
+    notifyNew(ids) { return call('notifyNew', { ids }); },
+    setMyNotify(on) { return call('setMyNotify', { on }); },
+    testMail() { return call('testMail'); },
     saveSigs(items) { return call('saveSigs', { items }); },
     toggleLike(p, email, on) { return call('like', { id: p.id, on }); },
     listComments(p) { return call('comments', { id: p.id }); },
@@ -682,6 +685,9 @@ function makeDemo() {
     async updatePhoto(p, patch) { Object.assign(photos.find(x => x.id === p.id), patch); },
     async fixVideoThumbs() { return { fixed: 0, left: 0, photos: [] }; },
     async sigs() { return {}; },
+    async notifyNew() { return { sent: 2 }; },
+    async setMyNotify(on) { const m = members.find(x => x.email === current); m.notify = on; return { notify: on }; },
+    async testMail() { return { quota: 99 }; },
     async saveSigs() { return { saved: 0 }; },
     async bulkState(ids, state) { const me = members.find(m => m.email === current), out = [];
       photos.forEach(p => { if (ids.includes(p.id) && (me.role === 'admin' || p.uploader === current)) { p.state = state; out.push(p.id); } }); return { ids: out }; },
@@ -936,6 +942,11 @@ function viewMilestones() {
     <div class="th"><img data-media="${p.albumId}/${p.id}/thumb" alt=""></div>
     <div><b>${ic('star', 17, 'fill')}${esc(p.milestone)}</b><small>${fmtDate(p.takenAt)} · ${esc(babyAge(p.takenAt))}</small>${p.caption ? `<div class="hint">${esc(p.caption)}</div>` : ''}</div></button>`).join('')}</div>`;
 }
+function notifyCard() {
+  return `<div class="card"><h3>${ic('mail', 19)}通知</h3><label class="chk"><input type="checkbox" data-change="myNotify" ${S.me.notify !== false ? 'checked' : ''}> 有新照片時寄 Email 通知我</label>
+    <p class="hint" style="margin-bottom:0">寄到 ${esc(S.me.email)}。家人上傳照片時寄一封信，附上幾張縮圖，自己上傳的不會通知。${isAdmin() ? '' : ''}</p>
+    ${isAdmin() ? `<button class="btn ghost sm" data-act="testMail" style="margin-top:.6rem">${ic('mail', 16)}寄一封測試信給我</button>` : ''}</div>`;
+}
 function bigTextCard() {
   return `<div class="card"><h3>${ic('type', 19)}顯示</h3><label class="chk"><input type="checkbox" data-change="bigText" ${document.documentElement.classList.contains('big') ? 'checked' : ''}> 長輩模式（字和照片變大）</label>
     <p class="hint" style="margin-bottom:0">想像 App 一樣使用：iPhone 用 Safari 按「分享」再選「加入主畫面」；Android 用 Chrome 按右上角選單，選「加到主畫面」。</p></div>`;
@@ -944,7 +955,9 @@ function viewMe() {
   return `<div class="card"><div class="mrow" style="padding-top:0">${avatar(S.me.email, S.me.name || '我')}
     <div class="info"><b>${esc(S.me.name || S.me.email)}</b> <span class="role ${S.me.role}">${ROLES[S.me.role].short}</span><small>${esc(S.me.email)}</small></div></div>
     <p class="hint" style="margin:.4rem 0 0">你可以：${ROLES[S.me.role].can}${S.me.canDownload ? '、下載照片' : ''}。</p></div>
-    ${bigTextCard()}
+    ${notifyCard()}
+    ${notifyCard()}
+  ${bigTextCard()}
     <button class="btn ghost" data-act="replayTour" style="width:100%;margin-bottom:.6rem">${ic('help', 17)}重看使用導覽</button>
     <button class="btn ghost" data-act="replayTour" style="width:100%;margin-bottom:.6rem">${ic('help', 17)}重看使用導覽</button>
   <button class="btn ghost" data-act="signOut" style="width:100%">登出</button>`;
@@ -1214,7 +1227,7 @@ async function runUpload(job) {
     const rec = await S.be.upload(job.albumId, item, meta, x => { local._prog = x; updUpTile(local); drawUpPill(); });
     const i = S.photos.indexOf(local); if (i >= 0) S.photos[i] = rec; else S.photos.push(rec);
     setTimeout(() => Object.values(_url).forEach(u => URL.revokeObjectURL(u)), 60000);
-    UQ.ok++; UQ.okBy[job.albumId] = (UQ.okBy[job.albumId] || 0) + 1;
+    UQ.ok++; UQ.okBy[job.albumId] = (UQ.okBy[job.albumId] || 0) + 1; (UQ.newIds ||= []).push(rec.id);
     if (item.sig) { dhGet()[rec.id] = item.sig; LS.set(DH_KEY, dhGet()); }
     softRender();
   } catch (e) {
@@ -1232,6 +1245,9 @@ function finishUploads() {
   Object.entries(UQ.okBy).forEach(([aid, n]) => logAct(`上傳了 ${n} 個檔案到「${albumById(aid)?.name || ''}」`));
   const msg = `上傳完成 ${UQ.ok} 個` + (UQ.skip ? `，略過重複 ${UQ.skip} 個` : '') + (UQ.failed.length ? `，${UQ.failed.length} 個失敗` : '');
   toast(msg, 3500);
+  const ids = UQ.newIds || []; UQ.newIds = [];
+  if (ids.length) S.be.notifyNew(ids).then(r => { if (r.sent) setTimeout(() => toast(`已寄 Email 通知 ${r.sent} 位家人`), 3800); })
+    .catch(e => { if (e.code === 'MAIL_NOT_AUTHORIZED' && isAdmin()) setTimeout(() => toast('Email 通知還沒授權：請到 Apps Script 執行一次 authorizeMail', 6000), 3800); });
   Object.assign(UQ, { total: UQ.failed.length, done: 0, ok: 0, okBy: {}, skip: 0 });
 }
 function updUpTile(p) {
@@ -1561,6 +1577,7 @@ function openEditMember(email) {
     <label class="f">權限</label><select id="mRole">${Object.entries(ROLES).map(([k, v]) => `<option value="${k}" ${m.role === k ? 'selected' : ''}>${v.label}</option>`).join('')}</select>
     <p class="hint" id="mRoleHint">${ROLES[m.role].can}</p>
     <label class="chk"><input type="checkbox" id="mDl" ${m.canDownload ? 'checked' : ''}> 允許下載照片</label>
+    <label class="chk"><input type="checkbox" id="mNotify" ${m.notify !== false ? 'checked' : ''}> 有新照片時寄 Email 通知他</label>
     <div class="row" style="margin-top:1rem"><button class="btn" data-act="saveMember" data-email="${esc(email || '')}">${email ? '儲存' : '加入並產生邀請訊息'}</button><button class="btn ghost" data-act="closeModal">取消</button><span class="sp"></span>
     ${email ? `<button class="btn danger sm" data-act="removeMember" data-email="${esc(email)}">移除</button>` : ''}</div>
     ${email ? '<p class="hint">移除後，對方立刻看不到任何照片。</p>' : ''}`);
@@ -1603,6 +1620,8 @@ const ACT = {
   upDismiss: () => { UQ.failed = []; UQ.total = 0; drawUpPill(); },
   closeModal: () => closeModal(),
   open: el => { closeModal(); openLB(el.dataset.key, el.dataset.list); },
+  testMail: async el => { el.disabled = true; try { const r = await S.be.testMail(); toast(`測試信已寄到 ${S.me.email}，今天還能寄約 ${r.quota} 封`, 4000); }
+    catch (e) { toast(e.code === 'MAIL_NOT_AUTHORIZED' ? '還沒授權寄信：請到 Apps Script 選 authorizeMail 按「執行」一次' : '寄送失敗：' + (e.code || ''), 6000); } finally { el.disabled = false; } },
   selStart: () => selStart(),
   selCancel: () => selEnd(),
   selToggle: el => { const k = el.dataset.key, p = keyP(k); if (!p || !canDel(p)) return toast(isAdmin() ? '這張不能選' : '只能刪除自己上傳的照片');
@@ -1669,7 +1688,7 @@ const ACT = {
     const isNew = !el.dataset.email, email = (isNew ? $('#mEmail').value : el.dataset.email).trim().toLowerCase();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return toast('請輸入正確的 Email');
     if (isNew && S.members.some(m => m.email === email)) return toast('這個 Email 已經在名單裡');
-    const m = { email, name: $('#mName').value.trim() || $('#mRel').value || email.split('@')[0], relation: $('#mRel').value, role: $('#mRole').value, canDownload: $('#mDl').checked };
+    const m = { email, name: $('#mName').value.trim() || $('#mRel').value || email.split('@')[0], relation: $('#mRel').value, role: $('#mRole').value, canDownload: $('#mDl').checked, notify: $('#mNotify').checked };
     if (isNew) m.addedAt = Date.now();
     try { await S.be.saveMember(m); const ex = S.members.find(x => x.email === email); ex ? Object.assign(ex, m) : S.members.push(m);
       logAct(`${isNew ? '把' : '修改'}「${m.name}」${isNew ? '加入相簿' : '的權限'}（${ROLES[m.role].short}${m.canDownload ? '' : '、不可下載'}）`);
@@ -1685,6 +1704,7 @@ document.addEventListener('change', e => {
   const el = e.target;
   if (el.id === 'msSel') { $('#msCustom').style.display = el.value === '__c' ? '' : 'none'; return; }
   if (el.id === 'mRole') { $('#mRoleHint').textContent = ROLES[el.value].can; return; }
+  if (el.dataset.change === 'myNotify') { const v = el.checked; S.be.setMyNotify(v).then(() => { S.me.notify = v; toast(v ? '有新照片時會寄 Email 給你' : '已關掉 Email 通知'); }).catch(() => { el.checked = !v; toast('儲存失敗'); }); return; }
   if (el.dataset.change === 'dupScope') { S.dupScope = el.value; findDups(); return; }
   if (el.dataset.change === 'presence') { const v = el.checked; S.be.setConfig({ showPresence: v }).then(() => { S.cfg.showPresence = v; toast('已儲存'); }).catch(() => { el.checked = !v; toast('儲存失敗'); }); return; }
   if (el.id === 'bBirth' || el.name === 'bg' || el.name === 'avm') { refreshAvPrev(); return; }
