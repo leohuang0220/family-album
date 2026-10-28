@@ -266,6 +266,10 @@ header.top{gap:.65rem}
 .dup-g .grid{margin-bottom:.4rem}
 .pbar{height:6px;border-radius:3px;background:var(--line);overflow:hidden;margin-top:.5rem}.pbar i{display:block;height:100%;background:var(--accent);transition:width .2s}
 @media (min-width:960px){.selbar{left:92px}}
+
+.inv-list .inv{display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;padding:.45rem 0;border-top:1px dashed var(--line);font-size:.88rem}
+.inv-list .inv>span:first-child{display:inline-flex;align-items:center;gap:.35rem;min-width:0}
+.tour-chk{justify-content:center;margin-top:1rem;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:.6rem .9rem}
 </style>
 </head>
 <body>
@@ -592,6 +596,10 @@ function makeGAS(url, clientId) {
     bulkState(ids, state) { return call('bulkState', { ids, state }); },
     sigs() { return call('sigs'); },
     notifyNew(ids) { return call('notifyNew', { ids }); },
+    joinInvite(code) { return call('joinInvite', { code }); },
+    createInvite(invite) { return call('createInvite', { invite }); },
+    listInvites() { return call('listInvites'); },
+    revokeInvite(id) { return call('revokeInvite', { id }); },
     setMyNotify(on) { return call('setMyNotify', { on }); },
     testMail() { return call('testMail'); },
     saveSigs(items) { return call('saveSigs', { items }); },
@@ -686,6 +694,11 @@ function makeDemo() {
     async fixVideoThumbs() { return { fixed: 0, left: 0, photos: [] }; },
     async sigs() { return {}; },
     async notifyNew() { return { sent: 2 }; },
+    _inv: [],
+    async joinInvite() { return { joined: true }; },
+    async createInvite(x) { const inv = { id: 'demo' + Date.now().toString(36), role: x.role, canDownload: x.canDownload, name: x.name, relation: x.relation, maxUses: x.multi ? 0 : 1, expiresAt: x.days ? Date.now() + x.days * 864e5 : 0, uses: 0, joined: [], createdAt: Date.now() }; this._inv.unshift(inv); return inv; },
+    async listInvites() { return this._inv.filter(i => !i.revoked); },
+    async revokeInvite(id) { const i = this._inv.find(x => x.id === id); if (i) i.revoked = true; return { ok: true }; },
     async setMyNotify(on) { const m = members.find(x => x.email === current); m.notify = on; return { notify: on }; },
     async testMail() { return { quota: 99 }; },
     async saveSigs() { return { saved: 0 }; },
@@ -740,6 +753,7 @@ const ICONS = {
   shield: '<path d="M12 3.5l7 2.8v5.4c0 4.2-2.9 7.3-7 8.8-4.1-1.5-7-4.6-7-8.8V6.3z"/><path d="M9 12l2.2 2.2L15.2 10"/>',
   baby: '<path d="M5 20v-7.5a7 7 0 0 1 14 0V20"/><circle cx="12" cy="11" r="2.4"/><path d="M3.5 20h17"/>',
   type: '<path d="M5 18l5-12 5 12M6.8 14h6.4M17 9h3M18.5 9v9"/>',
+  link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
   mail: '<rect x="3.5" y="5.5" width="17" height="13" rx="2.5"/><path d="M4 7l8 6 8-6"/>',
   upload: '<path d="M12 16V5M8 8.5l4-4 4 4M5 14v4.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V14"/>',
   cover: '<rect x="3.5" y="4.5" width="17" height="15" rx="3"/><path d="M8 10.5l2.5 2.5 3-4 3 4.5"/>',
@@ -763,6 +777,13 @@ const presenceOn = () => S.cfg.showPresence !== false;
 
 if (LS.get('bigText', false)) document.documentElement.classList.add('big');
 
+// 網址上的邀請碼／通知開關先記下來（登入過程可能會重新整理頁面）
+(function readUrlParams() {
+  const q = new URLSearchParams(location.search), inv = q.get('invite'), nt = q.get('notify');
+  if (inv && /^[a-z0-9]{8,40}$/i.test(inv)) LS.set('pendingInvite', inv);
+  if (nt === 'off' || nt === 'on') LS.set('pendingNotify', nt);
+  if (inv || nt) { q.delete('invite'); q.delete('notify'); try { history.replaceState(null, '', location.pathname + (q.toString() ? '?' + q : '')); } catch {} }
+})();
 async function boot() {
   // LINE 內建瀏覽器無法用 Google 登入 → 自動改用手機的外部瀏覽器開啟
   const ua = navigator.userAgent;
@@ -786,10 +807,20 @@ async function loadAll(keepView) {
     render();
     if (!openDeepLink() && !keepView) maybeOnboard();
     autoFixVideoThumbs();
+    const pn = LS.get('pendingNotify', '');
+    if (pn) { LS.set('pendingNotify', ''); S.be.setMyNotify(pn === 'on').then(() => { S.me.notify = pn === 'on'; toast(pn === 'on' ? '已打開 Email 通知' : '已關掉 Email 通知。之後想再收到，可以在「我的」重新打開', 5000); }).catch(() => {}); }
   } catch (e) {
     console.error(e);
     S.me = null;
-    if (e.code === 'NOT_INVITED') return renderNotInvited(e.email);
+    if (e.code === 'NOT_INVITED') {
+      const code = LS.get('pendingInvite', '');
+      if (code) {
+        app.innerHTML = '<div class="center"><div class="card login"><div class="spin"></div><p>正在加入相簿…</p></div></div>';
+        try { await S.be.joinInvite(code); LS.set('pendingInvite', ''); toast('加入成功，歡迎！'); return loadAll(); }
+        catch (e2) { LS.set('pendingInvite', ''); return renderNotInvited(e.email, { INVITE_EXPIRED: '這個邀請連結已經過期了', INVITE_USED_UP: '這個邀請連結已經有人用過了', INVITE_INVALID: '這個邀請連結已經失效' }[e2.code] || '加入失敗，請請爸媽重新傳一個邀請連結'); }
+      }
+      return renderNotInvited(e.email);
+    }
     if (/TOKEN|NO_TOKEN/.test(e.code || '')) return renderLogin('請重新登入');
     if (e.code === 'NOT_SETUP') e.message = '後端還沒執行 setup，請參考設定教學第二步';
     app.innerHTML = `<div class="center"><div class="card login"><div class="logo">${ic('alert', 36)}</div><h2>讀取資料失敗</h2><p class="hint">${esc(e.code || e.message)}</p><div class="row" style="justify-content:center"><button class="btn" data-act="reload">重新整理</button><button class="btn ghost" data-act="signOut">登出</button></div></div></div>`;
@@ -809,15 +840,15 @@ function renderLogin(msg) {
   app.innerHTML = `<div class="center"><div class="card login">
     <div class="logo">${ic('baby', 38)}</div><h1>寶寶家庭相簿</h1>
     ${msg ? `<p><b>${esc(msg)}</b></p>` : ''}
-    <p class="hint">只有受邀的家人可以看到照片。<br>請用被邀請的 Google 帳號登入。</p>
+    ${LS.get('pendingInvite', '') ? '<p><b>你收到加入家庭相簿的邀請</b></p><p class="hint">用你的 Google 帳號登入，就會自動加入。</p>' : '<p class="hint">只有受邀的家人可以看到照片。<br>請用被邀請的 Google 帳號登入。</p>'}
     <div id="gbtn" style="display:flex;justify-content:center;margin-top:1rem;min-height:44px"></div>
   </div></div>`;
   S.be.renderButton($('#gbtn'));
 }
-function renderNotInvited(email) {
+function renderNotInvited(email, why) {
   email = email || S.be.currentEmail();
   app.innerHTML = `<div class="center"><div class="card login">
-    <div class="logo">${ic('lock', 36)}</div><h2>還沒有被邀請</h2>
+    <div class="logo">${ic('lock', 36)}</div><h2>${why ? esc(why) : '還沒有被邀請'}</h2>
     <p>你登入的帳號是<br><b>${esc(email)}</b></p>
     <p class="hint">請把這個 Email 傳給寶寶的爸爸或媽媽，請他們把你加進相簿。加好之後重新整理，就能看到照片。</p>
     <div class="row" style="justify-content:center;margin-top:.8rem">
@@ -857,6 +888,7 @@ function render() {
   </nav>`;
   observeMedia();
   syncBrand();
+  if (S.tab === 'me' && isAdmin() && !S.adminView) fillInvites();
 }
 const navBtn = (t, i, l) => `<button class="${S.tab === t ? 'on' : ''}" data-act="tab" data-tab="${t}">${ic(i, 24)}<span>${l}</span></button>`;
 function view() {
@@ -956,7 +988,7 @@ function viewMe() {
     <div class="info"><b>${esc(S.me.name || S.me.email)}</b> <span class="role ${S.me.role}">${ROLES[S.me.role].short}</span><small>${esc(S.me.email)}</small></div></div>
     <p class="hint" style="margin:.4rem 0 0">你可以：${ROLES[S.me.role].can}${S.me.canDownload ? '、下載照片' : ''}。</p></div>
     ${notifyCard()}
-  ${bigTextCard()}
+    ${bigTextCard()}
     <button class="btn ghost" data-act="replayTour" style="width:100%;margin-bottom:.6rem">${ic('help', 17)}重看使用導覽</button>
   <button class="btn ghost" data-act="signOut" style="width:100%">登出</button>`;
 }
@@ -980,10 +1012,11 @@ function viewAdmin() {
     <div id="dupBox" style="margin-top:1rem"></div>`;
   if (v === 'log') return `${back}<h3 style="display:flex;gap:.4rem;align-items:center">${ic('log', 20)}動態紀錄</h3><div class="card" id="logBox"><div class="spin"></div></div>`;
   return `
-  <div class="card"><div class="row"><h3 style="margin:0">${ic('users', 20)}家人成員（${mem.length}）</h3><span class="sp"></span><button class="btn sm" data-act="editMember">${ic('plus', 16)}邀請家人</button></div>
+  <div class="card"><div class="row"><h3 style="margin:0">${ic('users', 20)}家人成員（${mem.length}）</h3><span class="sp"></span><button class="btn sm" data-act="newInvite">${ic('plus', 16)}邀請家人</button></div>
+    <div id="invBox"></div>
     ${mem.map(m => `<div class="mrow">${avatar(m.email, m.name || m.relation)}
       <div class="info"><b>${esc(m.name || m.email)}</b>${m.relation && m.relation !== m.name ? ` <small style="display:inline">(${esc(m.relation)})</small>` : ''} <span class="role ${m.role}">${ROLES[m.role]?.short || m.role}</span>
-      <small>${esc(m.email)}</small><small>${m.canDownload ? '可下載' : '不可下載'} · ${ago(m.lastSeen)}</small></div>
+      <small>${esc(m.email)}</small><small>${m.canDownload ? '可下載' : '不可下載'} · ${ago(m.lastSeen)}${m.via === 'invite' ? ' · 用邀請連結加入' : ''}${m.notify === false ? ' · 已關通知' : ''}</small></div>
       ${m.owner ? '<small class="hint">爸媽</small>' : `<button class="btn sm ghost" data-act="editMember" data-email="${esc(m.email)}">編輯</button>`}</div>`).join('')}
   </div>
   <div class="card"><div class="row"><h3 style="margin:0">${ic('baby', 20)}寶寶資料</h3><span class="sp"></span><button class="btn sm" data-act="babyEdit">${ic('edit', 16)}編輯</button></div>
@@ -1105,12 +1138,11 @@ function tourSlides() {
     { icon: 'calendar', h: '照片依月份整理', p: `每個月都會標示${n}幾個月大，往下滑就能看著${n}一路長大。` },
     { icon: 'heart', h: '按讚、留言、分享', p: '點開照片就能按讚或留言，在照片上點兩下也可以按讚。想讓其他人看，可以直接傳到 LINE。' },
     { icon: 'bell', h: '近況與回憶', p: '右上角的鈴鐺會告訴你家人上傳了什麼。時間軸最上面的「回憶」，會翻出 N 個月前的今天。' },
-    { icon: 'mail', h: '新照片 Email 通知', p: `家人上傳新照片時，會寄一封附縮圖的信給你。不想收的話，到「${adm ? '管理' : '我的'}」頁取消勾選「有新照片時寄 Email 通知我」，之後想收再勾回來就好。` },
-    ...(adm || fam ? [{ icon: 'check', h: '一次選很多張', p: `在照片上長按，或按「選取多張」，可以一次勾很多張${adm ? '來刪除或隱藏' : '來刪除自己上傳的照片'}；也能一次選整個月。刪掉的照片會先進回收桶，30 天內都救得回來。` }] : []),
-    ...(adm ? [{ icon: 'copy', h: '找重複照片', p: '「管理 → 找重複照片」會把長得很像的照片放在一起，方便挑一張留下，省空間。' }] : []),
-    { icon: 'shield', h: '隱私有保障', p: adm ? '每本相簿都能設定誰看得到。隱藏的照片只有你看得到，家人要先邀請才能登入。上傳時會自動移除照片裡的 GPS 位置。' : '只有被爸媽邀請的家人看得到，外人只會看到登入畫面。照片上傳時已移除 GPS 位置資訊。' },
+    { icon: 'mail', h: '有新照片時寄信通知你', p: `家人上傳新照片時，會寄一封信到 ${S.me.email}。不想收到可以在下面關掉，之後隨時能在「我的」重新打開。`, notify: true },
   ];
-  if (adm) s.push({ icon: 'users', h: '開始使用', p: '先建立相簿，再邀請爺爺奶奶和其他家人。邀請時可以決定每個人能看哪些相簿、能不能上傳或下載。', btns: [['新增相簿', 'tourAlbum'], ['邀請家人', 'tourInvite']] });
+  if (adm || fam) s.push({ icon: 'check', h: '一次刪除很多張', p: adm ? '長按任何一張照片，或按時間軸上方的「選取多張」，勾好後一起刪除或隱藏。「管理」裡的「找重複照片」會幫你挑出重複上傳的照片。刪掉的照片 30 天內都能從回收桶還原。' : '長按自己上傳的照片，或按時間軸上方的「選取多張」，勾好後一起刪除。刪掉的照片爸媽可以在 30 天內幫你還原。' });
+  s.push({ icon: 'shield', h: '隱私有保障', p: adm ? '每本相簿都能設定誰看得到。隱藏的照片只有你看得到，家人要先邀請才能登入。上傳時會自動移除照片裡的 GPS 位置。' : '只有被爸媽邀請的家人看得到，外人只會看到登入畫面。照片上傳時已移除 GPS 位置資訊。' });
+  if (adm) s.push({ icon: 'users', h: '邀請家人', p: '在「管理」按「邀請家人」，可以直接產生邀請連結傳到 LINE，不用先問對方的 Gmail。對方登入後會出現在家人名單，你可以隨時調整權限或移除。', btns: [['新增相簿', 'tourAlbum'], ['邀請家人', 'tourInvite']] });
   else if (fam) s.push({ icon: 'plus', h: '你也可以上傳', p: '按畫面下方中間的加號，選照片或影片就能上傳。只能上傳到爸媽開放的相簿。' });
   else s.push({ icon: 'home', h: '加到主畫面更方便', p: '用手機瀏覽器的選單選「加入主畫面」，以後點一下圖示就能看。' });
   return s;
@@ -1121,6 +1153,7 @@ function startTour(i = 0) {
   const s = sl[i], last = i === sl.length - 1;
   const d = document.createElement('div'); d.className = 'tour'; d.id = 'tour';
   d.innerHTML = `<div class="stage"><div class="big-ic">${s.av ? babyAvatar(120) : ic(s.icon, 54)}</div><h2>${esc(s.h)}</h2><p>${esc(s.p)}</p>
+      ${s.notify ? `<label class="chk tour-chk"><input type="checkbox" data-change="myNotify" ${S.me.notify !== false ? 'checked' : ''}> 有新照片時寄 Email 通知我</label>` : ''}
       ${s.btns ? `<div class="row" style="justify-content:center;margin-top:.8rem">${s.btns.map(([t, a]) => `<button class="btn ghost" data-act="${a}">${t}</button>`).join('')}</div>` : ''}</div>
     <div class="foot"><button class="skip" data-act="tourEnd">${last ? '' : '略過'}</button><div class="dots">${sl.map((_, k) => `<i class="${k === i ? 'on' : ''}"></i>`).join('')}</div>
       <button class="btn" data-act="${last ? 'tourEnd' : 'tourNext'}">${last ? '開始使用' : '下一步'}</button></div>`;
@@ -1129,7 +1162,7 @@ function startTour(i = 0) {
 function endTour() { $('#tour')?.remove(); LS.set('tour2:' + S.me.email, 1); }
 function maybeOnboard() {
   const needSetup = isAdmin() && !S.cfg.setupDone && !S.cfg.birthday && !S.cfg.babyName;
-  const tourDone = LS.get('tour2:' + S.me.email, false);  // tour2：導覽加了新功能，大家再看一次
+  const tourDone = LS.get('tour2:' + S.me.email, false);
   if (needSetup) return openBabyEdit(true, () => startTour());
   if (!tourDone) startTour();
 }
@@ -1584,6 +1617,51 @@ function openEditMember(email) {
     ${email ? `<button class="btn danger sm" data-act="removeMember" data-email="${esc(email)}">移除</button>` : ''}</div>
     ${email ? '<p class="hint">移除後，對方立刻看不到任何照片。</p>' : ''}`);
 }
+/* ---------- 邀請連結 ---------- */
+function openNewInvite() {
+  openModal(`<h2>邀請家人</h2>
+    <div class="seg" style="margin:.4rem 0 .2rem"><label><input type="radio" name="invMode" value="link" checked><span>產生邀請連結</span></label><label><input type="radio" name="invMode" value="email"><span>指定 Gmail</span></label></div>
+    <p class="hint">不用先知道對方的 Gmail。把連結傳給對方，他用自己的 Google 帳號登入就會加入，權限照你這裡的設定。加入後會出現在家人名單，你隨時可以移除。</p>
+    <label class="f">稱呼（選填）</label><input id="iName" placeholder="留空就用對方 Google 帳號的名字">
+    <label class="f">關係</label><select id="iRel"><option value="">—</option>${RELATIONS.map(r => `<option>${r}</option>`).join('')}</select>
+    <label class="f">權限</label><select id="iRole"><option value="viewer">${ROLES.viewer.label}</option><option value="family">${ROLES.family.label}</option></select>
+    <label class="chk"><input type="checkbox" id="iDl" checked> 允許下載照片</label>
+    <label class="f">這個連結可以給</label>
+    <div class="seg"><label><input type="radio" name="iMulti" value="0" checked><span>一個人用</span></label><label><input type="radio" name="iMulti" value="1"><span>很多人用（例如傳到家族群組）</span></label></div>
+    <label class="f">有效期限</label>
+    <div class="seg"><label><input type="radio" name="iDays" value="7" checked><span>7 天</span></label><label><input type="radio" name="iDays" value="30"><span>30 天</span></label><label><input type="radio" name="iDays" value="0"><span>不限</span></label></div>
+    <div class="row" style="margin-top:1rem"><button class="btn" data-act="makeInvite">${ic('link', 16)}產生邀請連結</button><button class="btn ghost" data-act="closeModal">取消</button></div>`);
+}
+const inviteUrl = inv => location.origin + location.pathname + '?invite=' + inv.id + '&openExternalBrowser=1';
+function inviteLinkText(inv) {
+  return `${inv.name ? inv.name + '您好！' : '您好！'}邀請您加入${babyName()}的家庭相簿。
+
+1. 打開這個連結：
+${inviteUrl(inv)}
+（如果在 LINE 裡打不開，請按右上角選單，選「用瀏覽器開啟」）
+
+2. 用您的 Google 帳號登入，就會自動加入。
+
+3. 登入後可以「加入主畫面」，以後點圖示就能看${babyName()}的照片了。`;
+}
+function showInviteLink(inv) {
+  const t = inviteLinkText(inv);
+  openModal(`<h2>邀請連結</h2><p class="hint">${inv.maxUses ? '這個連結只能給一個人用' : '這個連結可以給很多人用'}，${inv.expiresAt ? fmtDate(inv.expiresAt) + ' 前有效' : '沒有期限'}。把下面的訊息傳給對方：</p>
+    <textarea readonly style="min-height:12rem">${esc(t)}</textarea>
+    <div class="row" style="margin-top:.7rem"><button class="btn" data-act="copy" data-text="${esc(t)}">複製</button>
+    <a class="btn line" href="https://line.me/R/msg/text/?${encodeURIComponent(t)}" target="_blank" rel="noopener">用 LINE 傳送</a>
+    <button class="btn ghost" data-act="closeModal">完成</button></div>
+    <p class="hint">不想再讓人用這個連結加入：在「管理」的邀請連結清單按「停用」。</p>`);
+}
+async function fillInvites() {
+  const box = $('#invBox'); if (!box) return;
+  let xs = []; try { xs = await S.be.listInvites(); } catch { return; }
+  if (!$('#invBox')) return;
+  $('#invBox').innerHTML = xs.length ? `<div class="inv-list"><div class="hint" style="margin:.6rem 0 .3rem">還能使用的邀請連結</div>${xs.map(i => `<div class="inv">
+      <span>${ic('link', 15)}${esc(i.name || i.relation || '邀請連結')} · ${ROLES[i.role]?.short || ''} · ${i.maxUses ? '單人' : `多人（已加入 ${i.uses || 0} 人）`}${i.expiresAt ? ' · ' + fmtDate(i.expiresAt) + ' 到期' : ''}</span>
+      <span class="sp"></span><button class="btn ghost sm" data-act="shareInvite" data-id="${i.id}">傳送</button><button class="btn ghost sm" data-act="revokeInvite" data-id="${i.id}">停用</button></div>`).join('')}</div>` : '';
+  S._inv = xs;
+}
 function inviteText(m) {
   const url = location.origin + location.pathname + '?openExternalBrowser=1';
   return `${m.name || ''}您好！我們建立了${babyName()}的家庭相簿。\n\n1. 打開這個網址：\n${url}\n（如果在 LINE 裡打不開，請按右上角選單，選「用瀏覽器開啟」）\n\n2. 按「用 Google 帳號登入」，選擇：\n${m.email}\n\n3. 登入後可以「加入主畫面」，以後點圖示就能看${babyName()}的照片了。`;
@@ -1624,6 +1702,17 @@ const ACT = {
   open: el => { closeModal(); openLB(el.dataset.key, el.dataset.list); },
   testMail: async el => { el.disabled = true; try { const r = await S.be.testMail(); toast(`測試信已寄到 ${S.me.email}，今天還能寄約 ${r.quota} 封`, 4000); }
     catch (e) { toast(e.code === 'MAIL_NOT_AUTHORIZED' ? '還沒授權寄信：請到 Apps Script 選 authorizeMail 按「執行」一次' : '寄送失敗：' + (e.code || ''), 6000); } finally { el.disabled = false; } },
+  newInvite: () => openNewInvite(),
+  makeInvite: async el => {
+    if (document.querySelector('input[name=invMode]:checked').value === 'email') return openEditMember();
+    const x = { name: $('#iName').value.trim(), relation: $('#iRel').value, role: $('#iRole').value, canDownload: $('#iDl').checked,
+      multi: document.querySelector('input[name=iMulti]:checked').value === '1', days: Number(document.querySelector('input[name=iDays]:checked').value) };
+    el.disabled = true;
+    try { const inv = await S.be.createInvite(x); logAct(`產生了一個邀請連結（${ROLES[inv.role].short}${x.multi ? '、多人可用' : ''}）`); showInviteLink(inv); fillInvites(); }
+    catch (e) { el.disabled = false; toast('產生失敗：' + (e.code || '')); } },
+  shareInvite: el => { const inv = (S._inv || []).find(i => i.id === el.dataset.id); if (inv) showInviteLink(inv); },
+  revokeInvite: async el => { if (!confirm('停用這個邀請連結？已經加入的家人不受影響。')) return;
+    try { await S.be.revokeInvite(el.dataset.id); toast('已停用'); fillInvites(); } catch { toast('停用失敗'); } },
   selStart: () => selStart(),
   selCancel: () => selEnd(),
   selToggle: el => { const k = el.dataset.key, p = keyP(k); if (!p || !canDel(p)) return toast(isAdmin() ? '這張不能選' : '只能刪除自己上傳的照片');
@@ -1675,7 +1764,7 @@ const ACT = {
   tourEnd: () => endTour(),
   replayTour: () => startTour(0),
   tourAlbum: () => { endTour(); S.tab = 'albums'; render(); openEditAlbum(); },
-  tourInvite: () => { endTour(); S.tab = 'me'; S.adminView = null; render(); ACT.editMember({ dataset: {} }); },
+  tourInvite: () => { endTour(); S.tab = 'me'; S.adminView = null; render(); openNewInvite(); },
   editAlbum: el => openEditAlbum(el.dataset.id),
   saveAlbum: async el => {
     const name = $('#alName').value.trim(); if (!name) return toast('請輸入相簿名稱');
@@ -1706,6 +1795,7 @@ document.addEventListener('change', e => {
   const el = e.target;
   if (el.id === 'msSel') { $('#msCustom').style.display = el.value === '__c' ? '' : 'none'; return; }
   if (el.id === 'mRole') { $('#mRoleHint').textContent = ROLES[el.value].can; return; }
+  if (el.name === 'invMode' && el.value === 'email') { openEditMember(); return; }
   if (el.dataset.change === 'myNotify') { const v = el.checked; S.be.setMyNotify(v).then(() => { S.me.notify = v; toast(v ? '有新照片時會寄 Email 給你' : '已關掉 Email 通知'); }).catch(() => { el.checked = !v; toast('儲存失敗'); }); return; }
   if (el.dataset.change === 'dupScope') { S.dupScope = el.value; findDups(); return; }
   if (el.dataset.change === 'presence') { const v = el.checked; S.be.setConfig({ showPresence: v }).then(() => { S.cfg.showPresence = v; toast('已儲存'); }).catch(() => { el.checked = !v; toast('儲存失敗'); }); return; }
