@@ -956,9 +956,7 @@ function viewMe() {
     <div class="info"><b>${esc(S.me.name || S.me.email)}</b> <span class="role ${S.me.role}">${ROLES[S.me.role].short}</span><small>${esc(S.me.email)}</small></div></div>
     <p class="hint" style="margin:.4rem 0 0">你可以：${ROLES[S.me.role].can}${S.me.canDownload ? '、下載照片' : ''}。</p></div>
     ${notifyCard()}
-    ${notifyCard()}
   ${bigTextCard()}
-    <button class="btn ghost" data-act="replayTour" style="width:100%;margin-bottom:.6rem">${ic('help', 17)}重看使用導覽</button>
     <button class="btn ghost" data-act="replayTour" style="width:100%;margin-bottom:.6rem">${ic('help', 17)}重看使用導覽</button>
   <button class="btn ghost" data-act="signOut" style="width:100%">登出</button>`;
 }
@@ -998,6 +996,7 @@ function viewAdmin() {
     <button class="btn ghost sm" data-act="adminView" data-v="dups">${ic('copy', 16)}找重複照片</button></div>
     <p class="hint" style="margin-top:.8rem">已使用 ${fmtBytes(totalBytes)}（${S.photos.length} 個項目），存在你的 Google 雲端硬碟「寶寶家庭相簿」資料夾，不另外收費。</p>
     <p class="hint" style="margin-bottom:0">上傳時會保留完整解析度，並自動移除照片裡的 GPS 位置，避免家裡地址外流。</p></div>
+  ${notifyCard()}
   ${bigTextCard()}
   <button class="btn ghost" data-act="replayTour" style="width:100%;margin-bottom:.6rem">${ic('help', 17)}重看使用導覽</button>
   <button class="btn ghost" data-act="signOut" style="width:100%">登出（${esc(S.me.email)}）</button>`;
@@ -1106,6 +1105,9 @@ function tourSlides() {
     { icon: 'calendar', h: '照片依月份整理', p: `每個月都會標示${n}幾個月大，往下滑就能看著${n}一路長大。` },
     { icon: 'heart', h: '按讚、留言、分享', p: '點開照片就能按讚或留言，在照片上點兩下也可以按讚。想讓其他人看，可以直接傳到 LINE。' },
     { icon: 'bell', h: '近況與回憶', p: '右上角的鈴鐺會告訴你家人上傳了什麼。時間軸最上面的「回憶」，會翻出 N 個月前的今天。' },
+    { icon: 'mail', h: '新照片 Email 通知', p: `家人上傳新照片時，會寄一封附縮圖的信給你。不想收的話，到「${adm ? '管理' : '我的'}」頁取消勾選「有新照片時寄 Email 通知我」，之後想收再勾回來就好。` },
+    ...(adm || fam ? [{ icon: 'check', h: '一次選很多張', p: `在照片上長按，或按「選取多張」，可以一次勾很多張${adm ? '來刪除或隱藏' : '來刪除自己上傳的照片'}；也能一次選整個月。刪掉的照片會先進回收桶，30 天內都救得回來。` }] : []),
+    ...(adm ? [{ icon: 'copy', h: '找重複照片', p: '「管理 → 找重複照片」會把長得很像的照片放在一起，方便挑一張留下，省空間。' }] : []),
     { icon: 'shield', h: '隱私有保障', p: adm ? '每本相簿都能設定誰看得到。隱藏的照片只有你看得到，家人要先邀請才能登入。上傳時會自動移除照片裡的 GPS 位置。' : '只有被爸媽邀請的家人看得到，外人只會看到登入畫面。照片上傳時已移除 GPS 位置資訊。' },
   ];
   if (adm) s.push({ icon: 'users', h: '開始使用', p: '先建立相簿，再邀請爺爺奶奶和其他家人。邀請時可以決定每個人能看哪些相簿、能不能上傳或下載。', btns: [['新增相簿', 'tourAlbum'], ['邀請家人', 'tourInvite']] });
@@ -1124,10 +1126,10 @@ function startTour(i = 0) {
       <button class="btn" data-act="${last ? 'tourEnd' : 'tourNext'}">${last ? '開始使用' : '下一步'}</button></div>`;
   document.body.appendChild(d);
 }
-function endTour() { $('#tour')?.remove(); LS.set('tour:' + S.me.email, 1); }
+function endTour() { $('#tour')?.remove(); LS.set('tour2:' + S.me.email, 1); }
 function maybeOnboard() {
   const needSetup = isAdmin() && !S.cfg.setupDone && !S.cfg.birthday && !S.cfg.babyName;
-  const tourDone = LS.get('tour:' + S.me.email, false);
+  const tourDone = LS.get('tour2:' + S.me.email, false);  // tour2：導覽加了新功能，大家再看一次
   if (needSetup) return openBabyEdit(true, () => startTour());
   if (!tourDone) startTour();
 }
