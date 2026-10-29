@@ -866,6 +866,7 @@ async function loadAll(keepView) {
         try { await S.be.joinInvite(code); LS.set('pendingInvite', ''); toast('加入成功，歡迎！'); return loadAll(); }
         catch (e2) { LS.set('pendingInvite', ''); return renderNotInvited(e.email, { INVITE_EXPIRED: '這個邀請連結已經過期了', INVITE_USED_UP: '這個邀請連結已經有人用過了', INVITE_INVALID: '這個邀請連結已經失效' }[e2.code] || '加入失敗，請請爸媽重新傳一個邀請連結'); }
       }
+      if (new URLSearchParams(location.search).get('p')) return renderOldShare(e.email);
       return renderNotInvited(e.email);
     }
     if (/TOKEN|NO_TOKEN/.test(e.code || '')) return renderLogin('請重新登入');
@@ -902,6 +903,18 @@ function renderNotInvited(email, why) {
     <div class="row" style="justify-content:center;margin-top:.8rem">
       <button class="btn" data-act="copy" data-text="${esc(email)}">複製我的 Email</button>
       <button class="btn ghost" data-act="reload">重新整理</button>
+      <button class="btn ghost" data-act="signOut">換帳號</button>
+    </div></div></div>`;
+}
+// 沒被邀請的人點到舊版的分享連結（?p=相簿~照片）：舊連結只有家人能開，請對方用新的分享功能重傳
+function renderOldShare(email) {
+  email = email || S.be.currentEmail();
+  app.innerHTML = `<div class="center"><div class="card login">
+    <div class="logo">${ic('link', 36)}</div><h2>這是舊的分享連結</h2>
+    <p>舊的分享連結只有相簿裡的家人能打開。</p>
+    <p class="hint">請分享給你的人打開相簿，選好照片後按「分享」，再把新的連結傳給你。新的連結不需要被邀請，用 Google 帳號登入就能看。</p>
+    <p class="hint">你登入的帳號是 <b>${esc(email)}</b></p>
+    <div class="row" style="justify-content:center;margin-top:.8rem">
       <button class="btn ghost" data-act="signOut">換帳號</button>
     </div></div></div>`;
 }
