@@ -1,5 +1,5 @@
 // 只快取 App 外殼；照片不存進快取，避免留在共用裝置上
-const C = 'baby-album-v5';
+const C = 'baby-album-v6';
 const SHELL = ['./', './index.html', './app.webmanifest', './c-favicon.png', './c-apple-touch-icon.png', './c-icon-192.png', './c-icon-512.png', './c-icon-maskable-512.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(C).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== C && !k.startsWith('album-media')).map(k => caches.delete(k)))).then(() => self.clients.claim())); });

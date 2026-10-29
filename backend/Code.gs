@@ -17,9 +17,10 @@ const APP_URL = 'https://leohuang0220.github.io/family-album/';   // 通知信�
 function authorizeMail() { Logger.log('授權完成，今天還能寄 ' + MailApp.getRemainingDailyQuota() + ' 封信'); }
 const ROLES = ['admin', 'family', 'viewer'];
 const VIS = ['everyone', 'family', 'parents'];
-const TABLES = ['members', 'albums', 'photos', 'comments', 'activity', 'config', 'invites'];
+const TABLES = ['members', 'albums', 'photos', 'comments', 'activity', 'config', 'invites', 'shares'];
 const LOCKED = ['saveAlbum', 'deleteAlbum', 'saveMember', 'removeMember', 'setConfig', 'uploadStart', 'uploadFinish',
-                'updatePhoto', 'like', 'addComment', 'delComment', 'deleteForever', 'setThumb', 'fixVideoThumbs', 'bulkState', 'saveSigs', 'setMyNotify', 'createInvite', 'revokeInvite'];
+                'updatePhoto', 'like', 'addComment', 'delComment', 'deleteForever', 'setThumb', 'fixVideoThumbs', 'bulkState', 'saveSigs', 'setMyNotify', 'createInvite', 'revokeInvite',
+                'createShare', 'revokeShare'];
 const CHUNK_MAX = 8 * 1024 * 1024;
 const CACHE = CacheService.getScriptCache();
 
@@ -55,7 +56,12 @@ function doPost(e) {
     let me = getMe(who.email, who.name);
     // 用邀請連結加入：還不是家人的人，憑邀請碼加入
     if (!me && req.action === 'joinInvite') { lock.waitLock(25000); _locked = true; me = joinInvite(req.code, who); }
-    if (!me) out = { ok: false, error: req.session ? 'SESSION_INVALID' : 'NOT_INVITED', email: who.email };
+    // 分享連結：只要用 Google 登入就能看，不必是家人；但只拿得到那個連結裡的照片
+    if (Object.prototype.hasOwnProperty.call(SHARE, req.action)) {
+      out = { ok: true, data: SHARE[req.action](req, me) };
+      if (!req.session) out.session = makeSession(who);
+    }
+    else if (!me) out = { ok: false, error: req.session ? 'SESSION_INVALID' : 'NOT_INVITED', email: who.email };
     else {
       const fn = req.action === 'joinInvite' ? (() => ({ joined: true })) : API[req.action];
       if (!fn) throw err('BAD_ACTION');
@@ -235,6 +241,69 @@ function multipartReq(name, folderId, bytes, tok) {
     payload: concatBytes(head, bytes, tail), headers: { Authorization: 'Bearer ' + tok }, muteHttpExceptions: true };
 }
 function trashFiles(p) { Object.keys(p.files || {}).forEach(k => { try { DriveApp.getFileById(p.files[k]).setTrashed(true); } catch (x) {} }); }
+// 從雲端硬碟一次取多張縮圖／顯示用圖片（權限要先檢查好再傳進來）
+function fetchMedia(ps, which) {
+  const out = {}, fids = {};
+  ps.forEach(p => { const fid = (p.files || {})[which] || (p.files || {}).thumb; if (fid) fids[p.id] = fid; });
+  const cached = CACHE.getAll(Object.keys(fids).map(id => 'm:' + fids[id]));
+  const miss = [];
+  Object.keys(fids).forEach(id => { const k = 'm:' + fids[id]; if (cached[k]) out[id] = cached[k]; else miss.push(id); });
+  if (miss.length) {
+    const tok = ScriptApp.getOAuthToken();
+    const rs = UrlFetchApp.fetchAll(miss.map(id => ({ url: 'https://www.googleapis.com/drive/v3/files/' + fids[id] + '?alt=media', headers: { Authorization: 'Bearer ' + tok }, muteHttpExceptions: true })));
+    const toCache = {};
+    rs.forEach((r, i) => {
+      const id = miss[i]; if (r.getResponseCode() !== 200) return;
+      const b64 = Utilities.base64Encode(r.getBlob().getBytes());
+      out[id] = b64; if (b64.length < 95000) toCache['m:' + fids[id]] = b64;
+    });
+    try { if (Object.keys(toCache).length) CACHE.putAll(toCache, 21600); } catch (x) {}
+  }
+  return out;
+}
+// 原檔分段讀取（權限要先檢查好再傳進來）
+function readChunk(p, req) {
+  const fid = (p.files || {}).full; need(fid, 'NOT_FOUND');
+  const start = Math.max(0, Number(req.start) || 0), len = Math.min(CHUNK_MAX, Number(req.len) || CHUNK_MAX);
+  const r = driveFetch('https://www.googleapis.com/drive/v3/files/' + fid + '?alt=media', { headers: { Range: 'bytes=' + start + '-' + (start + len - 1) } });
+  need(r.getResponseCode() === 206 || r.getResponseCode() === 200, 'DRIVE_' + r.getResponseCode());
+  const cr = r.getAllHeaders()['Content-Range'] || '';
+  const total = Number((cr.split('/')[1]) || (p.sizes || {}).full || 0);
+  return { b64: Utilities.base64Encode(r.getBlob().getBytes()), total: total };
+}
+
+/* ---------- 分享連結（7 天有效；登入的人都能看，但只看得到連結裡的照片、不能下載） ---------- */
+const SHARE_DAYS = 7, SHARE_MAX = 100;
+function shareFor(code) {
+  const s = getOne('shares', String(code || ''));
+  need(s && !s.revoked, 'SHARE_INVALID');
+  need(s.expiresAt > Date.now(), 'SHARE_EXPIRED');
+  return s;
+}
+// 分享的人如果被移除、或已經看不到那本相簿，那些照片就跟著看不到；被刪除或隱藏的照片也一樣
+function sharedPhotos(s) {
+  const owner = getMe(s.createdBy, ''); need(owner, 'SHARE_INVALID');
+  const all = {}; readAll('photos').forEach(p => all[p.id] = p);
+  const albums = {}; readAll('albums').forEach(a => albums[a.id] = a);
+  return s.ids.map(id => all[id]).filter(p => p && p.state === 'normal' && canSee(albums[p.albumId], owner));
+}
+const SHARE = {
+  viewShare(req, me) {
+    const s = shareFor(req.code), ps = sharedPhotos(s), by = getOne('members', s.createdBy) || {};
+    return { expiresAt: s.expiresAt, from: by.name || '', baby: (getOne('config', 'baby') || {}).babyName || '寶寶', member: !!me,
+      items: ps.map(p => ({ id: p.id, kind: p.kind, mime: p.mime, w: p.w, h: p.h, duration: p.duration, takenAt: p.takenAt, caption: p.caption, milestone: p.milestone, ph: p.ph, tv: p.tv })) };
+  },
+  shareMedia(req) {
+    const ok = {}; sharedPhotos(shareFor(req.code)).forEach(p => ok[p.id] = p);
+    return fetchMedia((req.ids || []).slice(0, 40).map(String).map(id => ok[id]).filter(Boolean), req.which === 'disp' ? 'disp' : 'thumb');
+  },
+  // 只給影片播放用；照片只給顯示用尺寸，拿不到原檔
+  shareChunk(req) {
+    const p = sharedPhotos(shareFor(req.code)).find(x => x.id === String(req.id));
+    need(p && p.kind === 'video', 'NOT_FOUND');
+    return readChunk(p, req);
+  },
+};
 
 /* ---------- API ---------- */
 const API = {
@@ -258,41 +327,39 @@ const API = {
     const which = req.which === 'disp' ? 'disp' : 'thumb';
     const all = {}; readAll('photos').forEach(p => all[p.id] = p);
     const albums = {}; readAll('albums').forEach(a => albums[a.id] = a);
-    const out = {}, want = (req.ids || []).slice(0, 40), fids = {};
-    want.forEach(id => {
-      const p = all[id];
-      if (!p || !canSee(albums[p.albumId], me) || (p.state !== 'normal' && !isAdmin(me))) return;
-      const fid = (p.files || {})[which] || (p.files || {}).thumb;
-      if (fid) fids[id] = fid;
-    });
-    const cached = CACHE.getAll(Object.keys(fids).map(id => 'm:' + fids[id]));
-    const miss = [];
-    Object.keys(fids).forEach(id => { const k = 'm:' + fids[id]; if (cached[k]) out[id] = cached[k]; else miss.push(id); });
-    if (miss.length) {
-      const tok = ScriptApp.getOAuthToken();
-      const rs = UrlFetchApp.fetchAll(miss.map(id => ({ url: 'https://www.googleapis.com/drive/v3/files/' + fids[id] + '?alt=media', headers: { Authorization: 'Bearer ' + tok }, muteHttpExceptions: true })));
-      const toCache = {};
-      rs.forEach((r, i) => {
-        const id = miss[i]; if (r.getResponseCode() !== 200) return;
-        const b64 = Utilities.base64Encode(r.getBlob().getBytes());
-        out[id] = b64; if (b64.length < 95000) toCache['m:' + fids[id]] = b64;
-      });
-      try { if (Object.keys(toCache).length) CACHE.putAll(toCache, 21600); } catch (x) {}
-    }
-    return out;
+    const ps = (req.ids || []).slice(0, 40).map(id => all[id])
+      .filter(p => p && canSee(albums[p.albumId], me) && (p.state === 'normal' || isAdmin(me)));
+    return fetchMedia(ps, which);
   },
 
   // 原檔分段下載（影片播放、下載原圖）
   chunk(req, me) {
     const p = photoFor(req.id, me);
     need(p.kind === 'video' || me.canDownload, 'NO_DOWNLOAD');
-    const fid = p.files.full; need(fid, 'NOT_FOUND');
-    const start = Math.max(0, Number(req.start) || 0), len = Math.min(CHUNK_MAX, Number(req.len) || CHUNK_MAX);
-    const r = driveFetch('https://www.googleapis.com/drive/v3/files/' + fid + '?alt=media', { headers: { Range: 'bytes=' + start + '-' + (start + len - 1) } });
-    need(r.getResponseCode() === 206 || r.getResponseCode() === 200, 'DRIVE_' + r.getResponseCode());
-    const cr = r.getAllHeaders()['Content-Range'] || '';
-    const total = Number((cr.split('/')[1]) || (p.sizes || {}).full || 0);
-    return { b64: Utilities.base64Encode(r.getBlob().getBytes()), total: total };
+    return readChunk(p, req);
+  },
+
+  // 分享連結：家人都可以分享自己看得到的照片／影片，一次最多 100 個，7 天後失效
+  createShare(req, me) {
+    const ids = (req.ids || []).map(String).filter((x, i, a) => a.indexOf(x) === i).slice(0, SHARE_MAX);
+    need(ids.length, 'EMPTY');
+    const all = {}; readAll('photos').forEach(p => all[p.id] = p);
+    const albums = {}; readAll('albums').forEach(a => albums[a.id] = a);
+    ids.forEach(id => { const p = all[id]; need(p && p.state === 'normal' && canSee(albums[p.albumId], me), 'FORBIDDEN'); });
+    const s = { id: Utilities.getUuid().replace(/-/g, ''), ids: ids, createdBy: me.email, createdAt: Date.now(), expiresAt: Date.now() + SHARE_DAYS * 864e5 };
+    put('shares', s);
+    try { log(me, '用分享連結分享了 ' + ids.length + ' 個檔案（' + SHARE_DAYS + ' 天有效）'); } catch (x) {}
+    return s;
+  },
+  listShares(req, me) {
+    return readAll('shares').filter(s => !s.revoked && s.expiresAt > Date.now() && (isAdmin(me) || s.createdBy === me.email))
+      .sort((a, b) => b.createdAt - a.createdAt);
+  },
+  revokeShare(req, me) {
+    const s = getOne('shares', String(req.id || '')); need(s, 'NOT_FOUND');
+    need(isAdmin(me) || s.createdBy === me.email, 'FORBIDDEN');
+    s.revoked = true; put('shares', s);
+    return { ok: true };
   },
 
   uploadStart(req, me) {

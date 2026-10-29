@@ -145,6 +145,10 @@ html.big .grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}
 .sh .mk{width:2.2rem;height:2.2rem;border-radius:10px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent);flex:none}
 .sh .mk.line{background:#06A94D;color:#fff;font-size:.62rem;font-weight:800;letter-spacing:.02em}
 .sh small{display:block;font-weight:400;color:var(--sub)}
+.sh-th{display:flex;gap:4px;flex-wrap:wrap;margin:.7rem 0 .2rem}
+.sh-th .tile{width:3.4rem;height:3.4rem;aspect-ratio:auto;flex:none}
+.sh-th .more{width:3.4rem;height:3.4rem;border-radius:6px;background:var(--tint);display:grid;place-items:center;font-size:.85rem;font-weight:700;color:var(--sub)}
+.nocopy video{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 
 .feed-av{display:flex;gap:.9rem;overflow-x:auto;padding:.4rem 0 .6rem}
 .feed-av .p{flex:none;text-align:center;width:4.2rem;font-size:.74rem;color:var(--sub)}
@@ -534,19 +538,45 @@ function makeGAS(url, clientId) {
   }
   function seed(id, which, blob, tv) { const k = which + '|' + id + (which === 'thumb' && tv ? '@' + tv : ''); cache.set(k, URL.createObjectURL(blob)); diskPut(k, blob); }
   // 原檔（影片、下載原圖）分段取回
-  async function original(p, onProg) {
-    const k = 'full|' + p.id;
-    if (cache.has(k)) return cache.get(k);
+  async function pull(action, args, p, onProg) {
     const CH = 6 * 1024 * 1024, parts = [];
     let start = 0, total = Infinity;
     while (start < total) {
-      const r = await call('chunk', { id: p.id, start, len: CH });
+      const r = await call(action, { ...args, id: p.id, start, len: CH });
       const blob = b64ToBlob(r.b64); if (!blob.size) break;
       parts.push(blob); start += blob.size; total = r.total || start;
       onProg?.(Math.min(1, start / total));
     }
-    const u = URL.createObjectURL(new Blob(parts, { type: p.mime || (p.kind === 'video' ? 'video/mp4' : 'image/jpeg') }));
+    return URL.createObjectURL(new Blob(parts, { type: p.mime || (p.kind === 'video' ? 'video/mp4' : 'image/jpeg') }));
+  }
+  async function original(p, onProg) {
+    const k = 'full|' + p.id;
+    if (cache.has(k)) return cache.get(k);
+    const u = await pull('chunk', {}, p, onProg);
     cache.set(k, u); return u;
+  }
+  // 分享連結裡的照片：另外取、不存進這台手機（對方可能不是家人）
+  const shMem = new Map(); let shPend = [], shTimer = null;
+  function shFlush() {
+    shTimer = null;
+    const groups = {}; shPend.forEach(e => (groups[e.code + '|' + e.which] ||= []).push(e)); shPend = [];
+    for (const g in groups) {
+      const [code, which] = g.split('|'), list = groups[g], per = which === 'disp' ? 4 : 12;
+      for (let i = 0; i < list.length; i += per) {
+        const part = list.slice(i, i + per);
+        call('shareMedia', { code, which, ids: part.map(e => e.id) }).then(res => part.forEach(e => {
+          const b = res[e.id]; b ? e.res(URL.createObjectURL(b64ToBlob(b, 'image/jpeg'))) : e.rej(mkErr('NO_MEDIA'));
+        })).catch(err => part.forEach(e => e.rej(err)));
+      }
+    }
+  }
+  function shareURL(code, p, which, onProg) {
+    const k = code + '|' + which + '|' + p.id;
+    if (shMem.has(k)) return shMem.get(k);
+    const pr = which === 'full' ? pull('shareChunk', { code }, p, onProg)
+      : new Promise((res, rej) => { shPend.push({ code, which, id: p.id, res, rej }); if (!shTimer) shTimer = setTimeout(shFlush, 40); });
+    shMem.set(k, pr); pr.catch(() => shMem.delete(k));
+    return pr;
   }
 
   return {
@@ -600,6 +630,11 @@ function makeGAS(url, clientId) {
     createInvite(invite) { return call('createInvite', { invite }); },
     listInvites() { return call('listInvites'); },
     revokeInvite(id) { return call('revokeInvite', { id }); },
+    createShare(ids) { return call('createShare', { ids }); },
+    listShares() { return call('listShares'); },
+    revokeShare(id) { return call('revokeShare', { id }); },
+    viewShare(code) { return call('viewShare', { code }); },
+    shareURL,
     setMyNotify(on) { return call('setMyNotify', { on }); },
     testMail() { return call('testMail'); },
     saveSigs(items) { return call('saveSigs', { items }); },
@@ -699,6 +734,14 @@ function makeDemo() {
     async createInvite(x) { const inv = { id: 'demo' + Date.now().toString(36), role: x.role, canDownload: x.canDownload, name: x.name, relation: x.relation, maxUses: x.multi ? 0 : 1, expiresAt: x.days ? Date.now() + x.days * 864e5 : 0, uses: 0, joined: [], createdAt: Date.now() }; this._inv.unshift(inv); return inv; },
     async listInvites() { return this._inv.filter(i => !i.revoked); },
     async revokeInvite(id) { const i = this._inv.find(x => x.id === id); if (i) i.revoked = true; return { ok: true }; },
+    _sh: [],
+    async createShare(ids) { const s = { id: 'demo' + Date.now().toString(36), ids, createdBy: current, createdAt: Date.now(), expiresAt: Date.now() + 7 * day }; this._sh.unshift(s); return s; },
+    async listShares() { const me = members.find(m => m.email === current); return this._sh.filter(s => !s.revoked && (me.role === 'admin' || s.createdBy === current)); },
+    async revokeShare(id) { const s = this._sh.find(x => x.id === id); if (s) s.revoked = true; return { ok: true }; },
+    async viewShare(code) { const s = this._sh.find(x => x.id === code && !x.revoked); if (!s) throw mkErr('SHARE_INVALID');
+      return { expiresAt: s.expiresAt, from: members.find(m => m.email === s.createdBy)?.name || '', baby: cfg.babyName, member: true,
+        items: photos.filter(p => s.ids.includes(p.id) && p.state === 'normal').map(p => ({ id: p.id, kind: p._demoVideo ? 'image' : p.kind, takenAt: p.takenAt, caption: p.caption, milestone: p.milestone })) }; },
+    async shareURL(code, p, which) { const src = photos.find(x => x.id === p.id); return src._url[which] || src._url.disp || src._url.full || src._url.thumb; },
     async setMyNotify(on) { const m = members.find(x => x.email === current); m.notify = on; return { notify: on }; },
     async testMail() { return { quota: 99 }; },
     async saveSigs() { return { saved: 0 }; },
@@ -779,10 +822,11 @@ if (LS.get('bigText', false)) document.documentElement.classList.add('big');
 
 // 網址上的邀請碼／通知開關先記下來（登入過程可能會重新整理頁面）
 (function readUrlParams() {
-  const q = new URLSearchParams(location.search), inv = q.get('invite'), nt = q.get('notify');
+  const q = new URLSearchParams(location.search), inv = q.get('invite'), nt = q.get('notify'), sh = q.get('s');
   if (inv && /^[a-z0-9]{8,40}$/i.test(inv)) LS.set('pendingInvite', inv);
   if (nt === 'off' || nt === 'on') LS.set('pendingNotify', nt);
-  if (inv || nt) { q.delete('invite'); q.delete('notify'); try { history.replaceState(null, '', location.pathname + (q.toString() ? '?' + q : '')); } catch {} }
+  if (sh && /^[a-z0-9]{8,40}$/i.test(sh)) LS.set('pendingShare', sh);
+  if (inv || nt || sh) { q.delete('invite'); q.delete('notify'); q.delete('s'); try { history.replaceState(null, '', location.pathname + (q.toString() ? '?' + q : '')); } catch {} }
 })();
 async function boot() {
   // LINE 內建瀏覽器無法用 Google 登入 → 自動改用手機的外部瀏覽器開啟
@@ -797,6 +841,9 @@ async function boot() {
 }
 
 async function loadAll(keepView) {
+  if (S.share) return;   // 正在看分享連結：按「進入相簿」才離開
+  const sc = LS.get('pendingShare', '');
+  if (sc && !keepView) return openShareView(sc);
   if (!keepView) app.innerHTML = '<div class="center"><div class="spin"></div></div>';
   try {
     const d = await S.be.bootstrap();
@@ -840,7 +887,8 @@ function renderLogin(msg) {
   app.innerHTML = `<div class="center"><div class="card login">
     <div class="logo">${ic('baby', 38)}</div><h1>寶寶家庭相簿</h1>
     ${msg ? `<p><b>${esc(msg)}</b></p>` : ''}
-    ${LS.get('pendingInvite', '') ? '<p><b>你收到加入家庭相簿的邀請</b></p><p class="hint">用你的 Google 帳號登入，就會自動加入。</p>' : '<p class="hint">只有受邀的家人可以看到照片。<br>請用被邀請的 Google 帳號登入。</p>'}
+    ${LS.get('pendingShare', '') ? '<p><b>有人分享了照片給你</b></p><p class="hint">用任何 Google 帳號登入就能看，不需要被邀請。</p>'
+      : LS.get('pendingInvite', '') ? '<p><b>你收到加入家庭相簿的邀請</b></p><p class="hint">用你的 Google 帳號登入，就會自動加入。</p>' : '<p class="hint">只有受邀的家人可以看到照片。<br>請用被邀請的 Google 帳號登入。</p>'}
     <div id="gbtn" style="display:flex;justify-content:center;margin-top:1rem;min-height:44px"></div>
   </div></div>`;
   S.be.renderButton($('#gbtn'));
@@ -889,6 +937,7 @@ function render() {
   observeMedia();
   syncBrand();
   if (S.tab === 'me' && isAdmin() && !S.adminView) fillInvites();
+  if (S.tab === 'me' && !S.adminView) fillShares();
 }
 const navBtn = (t, i, l) => `<button class="${S.tab === t ? 'on' : ''}" data-act="tab" data-tab="${t}">${ic(i, 24)}<span>${l}</span></button>`;
 function view() {
@@ -905,8 +954,8 @@ function tile(p, list, extra = '') {
   const ph = p.ph ? ` style="background-image:url('${p.ph}')"` : '';
   if (p._local) return `<button class="tile up" data-act="upInfo" data-key="${p.albumId}/${p.id}" aria-label="上傳中"${ph}><img src="${p._url.thumb}" class="ok" alt=""><span class="upbar"><i style="width:${Math.max(4, Math.round((p._prog || 0) * 100))}%"></i></span></button>`;
   if (S.sel) {
-    const k = p.albumId + '/' + p.id, can = canDel(p), on = S.sel.has(k);
-    return `<button class="tile selm${on ? ' on' : ''}${can ? '' : ' no'}" data-act="selToggle" data-key="${k}" aria-pressed="${on}" aria-label="${can ? '選取這張' : '不能刪除這張'}"${ph}>
+    const k = p.albumId + '/' + p.id, can = canSel(p), on = S.sel.has(k);
+    return `<button class="tile selm${on ? ' on' : ''}${can ? '' : ' no'}" data-act="selToggle" data-key="${k}" aria-pressed="${on}" aria-label="${can ? '選取這張' : '不能選取這張'}"${ph}>
       <img data-media="${p.albumId}/${p.id}/thumb" alt="">${p.kind === 'video' ? `<span class="b vid">${ic('play', 11, 'play')}</span>` : ''}<span class="ck">${on ? ic('check', 16) : ''}</span></button>`;
   }
   return `<button class="tile" data-act="open" data-key="${p.albumId}/${p.id}" data-list="${list}" aria-label="查看照片"${ph}>
@@ -935,7 +984,7 @@ function viewTimeline() {
   const mem = !S.albumId ? memories() : [];
   let html = bc + head + (newCount ? `<div class="note">${ic('bell', 17)}上次之後新增了 ${newCount} 項</div>` : '');
   if (mem.length) html += `<section class="mem"><h2>${ic('clockBack', 19)}回憶</h2><div class="strip">${mem.map(({ p, diff }) => tile(p, 'memories', `<span class="lab">${diff} 個月前</span>`)).join('')}</div></section>`;
-  if (!S.sel && ps.some(canDel)) html += `<div class="tl-tools"><button class="chip" data-act="selStart">${ic('check', 14)}選取多張</button></div>`;
+  if (!S.sel && ps.some(canSel)) html += `<div class="tl-tools"><button class="chip" data-act="selStart">${ic('check', 14)}選取多張</button></div>`;
   const groups = new Map();
   ps.forEach(p => { const d = new Date(p.takenAt), k = d.getFullYear() * 100 + d.getMonth(); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(p); });
   groups.forEach((list, k) => {
@@ -987,6 +1036,7 @@ function viewMe() {
   return `<div class="card"><div class="mrow" style="padding-top:0">${avatar(S.me.email, S.me.name || '我')}
     <div class="info"><b>${esc(S.me.name || S.me.email)}</b> <span class="role ${S.me.role}">${ROLES[S.me.role].short}</span><small>${esc(S.me.email)}</small></div></div>
     <p class="hint" style="margin:.4rem 0 0">你可以：${ROLES[S.me.role].can}${S.me.canDownload ? '、下載照片' : ''}。</p></div>
+    <div id="shBox"></div>
     ${notifyCard()}
     ${bigTextCard()}
     <button class="btn ghost" data-act="replayTour" style="width:100%;margin-bottom:.6rem">${ic('help', 17)}重看使用導覽</button>
@@ -1019,6 +1069,7 @@ function viewAdmin() {
       <small>${esc(m.email)}</small><small>${m.canDownload ? '可下載' : '不可下載'} · ${ago(m.lastSeen)}${m.via === 'invite' ? ' · 用邀請連結加入' : ''}${m.notify === false ? ' · 已關通知' : ''}</small></div>
       ${m.owner ? '<small class="hint">爸媽</small>' : `<button class="btn sm ghost" data-act="editMember" data-email="${esc(m.email)}">編輯</button>`}</div>`).join('')}
   </div>
+  <div id="shBox"></div>
   <div class="card"><div class="row"><h3 style="margin:0">${ic('baby', 20)}寶寶資料</h3><span class="sp"></span><button class="btn sm" data-act="babyEdit">${ic('edit', 16)}編輯</button></div>
     <div class="mrow" style="padding-bottom:0">${babyAvatar(56)}<div class="info"><b>${esc(babyName())}</b>${S.cfg.fullName ? ` <small style="display:inline">(${esc(S.cfg.fullName)})</small>` : ''}<small>${S.cfg.birthday ? `${esc(S.cfg.birthday)} 出生 · ${esc(babyAge(Date.now()))}` : '還沒設定生日'}</small></div></div>
     <label class="chk" style="margin-top:.8rem"><input type="checkbox" data-change="presence" ${presenceOn() ? 'checked' : ''}> 讓家人看到彼此「最近上線」的時間</label></div>
@@ -1354,18 +1405,21 @@ async function fixVideoThumb(p, url) {
     document.querySelectorAll(`img[data-media="${p.albumId}/${p.id}/thumb"]`).forEach(i => { i.src = URL.createObjectURL(f.blob); });
   } catch (e) { console.warn('thumb fix', e); } finally { p._fixing = false; }
 }
-/* ---------- 多選刪除 ---------- */
+/* ---------- 多選分享／刪除 ---------- */
 const canDel = p => !p._local && p.state !== 'trash' && (isAdmin() || (p.uploader === S.me.email && p.state === 'normal'));
+const canSel = p => !p._local && p.state === 'normal';
+const selPs = () => [...S.sel].map(keyP).filter(Boolean);
 function selStart(firstKey) { S.sel = new Set(firstKey ? [firstKey] : []); render(); drawSelBar(); }
 function selEnd() { S.sel = null; $('#selBar')?.remove(); render(); }
 function drawSelBar() {
   let el = $('#selBar');
   if (!S.sel) { el?.remove(); return; }
   if (!el) { el = document.createElement('div'); el.id = 'selBar'; el.className = 'selbar'; document.body.appendChild(el); }
-  const n = S.sel.size;
+  const n = S.sel.size, nDel = selPs().filter(canDel).length;
   el.innerHTML = `<button class="btn ghost sm" data-act="selCancel">取消</button><b>已選 ${n} 張</b><span class="sp"></span>
+    <button class="btn sm" data-act="selShare" ${n ? '' : 'disabled'}>${ic('share', 16)}分享</button>
     ${isAdmin() ? `<button class="btn ghost sm" data-act="selDo" data-s="hidden" ${n ? '' : 'disabled'}>${ic('eyeOff', 16)}隱藏</button>` : ''}
-    <button class="btn danger sm" data-act="selDo" data-s="trash" ${n ? '' : 'disabled'}>${ic('trash', 16)}刪除</button>`;
+    <button class="btn danger sm" data-act="selDo" data-s="trash" ${nDel ? '' : 'disabled'}>${ic('trash', 16)}刪除</button>`;
 }
 async function bulkApply(keys, state) {
   const ps = keys.map(k => keyP(k)).filter(Boolean).filter(canDel);
@@ -1382,7 +1436,7 @@ let lpTimer = null, lpFired = false, lpUntil = 0;
 document.addEventListener('pointerdown', e => {
   const t = e.target.closest('.tile[data-act="open"]'); if (!t || S.sel) return;
   lpFired = false; clearTimeout(lpTimer);
-  lpTimer = setTimeout(() => { const p = keyP(t.dataset.key); if (p && canDel(p)) { lpFired = true; try { navigator.vibrate?.(15); } catch {} selStart(t.dataset.key); } }, 550);
+  lpTimer = setTimeout(() => { const p = keyP(t.dataset.key); if (p && canSel(p)) { lpFired = true; try { navigator.vibrate?.(15); } catch {} selStart(t.dataset.key); } }, 550);
 });
 ['pointerup', 'pointercancel', 'pointermove'].forEach(ev => document.addEventListener(ev, e => { if (ev === 'pointermove' && Math.abs(e.movementX) + Math.abs(e.movementY) < 4) return; clearTimeout(lpTimer);
   if (ev !== 'pointermove' && lpFired) { lpFired = false; lpUntil = Date.now() + 450; } }, true));
@@ -1556,20 +1610,110 @@ async function downloadCur() {
 }
 
 /* ---------- 分享 ---------- */
-const shareLink = p => location.origin + location.pathname + '?p=' + p.albumId + '~' + p.id + '&openExternalBrowser=1';
-const shareText = p => `${babyName()}的照片${p.caption ? '：' + p.caption : ''}`;
-function openShare() {
-  const p = curP(), link = shareLink(p), me = S.me;
-  openModal(`<h2>分享這張照片</h2>
-    <p class="hint">對方要用「被邀請的 Google 帳號」登入才看得到。沒被邀請的人只會看到登入畫面，照片不會外流。</p>
-    <div class="share-list">
-      <a class="sh" href="https://line.me/R/msg/text/?${encodeURIComponent(shareText(p) + '\n' + link)}" target="_blank" rel="noopener"><span class="mk line">LINE</span><span>傳到 LINE<small>傳送連結，點開就看到這張</small></span></a>
-      ${me.canDownload && p.kind !== 'video' ? `<button class="sh" data-act="shareFile"><span class="mk">${ic('image', 20)}</span><span>分享照片檔案<small>用手機的分享選單傳出照片本身</small></span></button>` : ''}
-      <button class="sh" data-act="copy" data-text="${esc(link)}"><span class="mk">${ic('link', 20)}</span><span>複製連結</span></button>
-      ${navigator.share ? `<button class="sh" data-act="shareNative"><span class="mk">${ic('share', 20)}</span><span>其他應用程式</span></button>` : ''}
-    </div>
-    <button class="btn ghost" data-act="closeModal" style="width:100%;margin-top:.8rem">關閉</button>`);
+// 分享連結：收到的人用任何 Google 帳號登入就能看，但只看得到這次選的照片、不能下載，7 天後失效
+const shareLink = s => location.origin + location.pathname + '?s=' + s.id + '&openExternalBrowser=1';
+const whatOf = ps => { const v = ps.filter(p => p.kind === 'video').length, i = ps.length - v; return [i ? i + ' 張照片' : '', v ? v + ' 支影片' : ''].filter(Boolean).join('、'); };
+const shareText = ps => `${babyName()}的${whatOf(ps)}${ps.length === 1 && ps[0].caption ? '：' + ps[0].caption : ''}`;
+const openShare = () => openShareFor([curP()]);
+async function openShareFor(ps) {
+  ps = ps.filter(p => p && !p._local && p.state === 'normal');
+  if (!ps.length) return toast('隱藏或在回收桶裡的照片不能分享');
+  if (ps.length > 100) return toast('一次最多分享 100 個，請少選一些');
+  const m = openModal(`<h2>分享 ${whatOf(ps)}</h2><div style="padding:1.5rem 0;text-align:center"><div class="spin"></div><p class="hint">正在產生分享連結…</p></div>`);
+  m.dataset.lock = '1';
+  try {
+    const s = await S.be.createShare(ps.map(p => p.id));
+    if ($('#modal') !== m) return;
+    S._shareCur = { link: shareLink(s), text: shareText(ps) };
+    const one = ps.length === 1 && S.lb && curP() === ps[0];
+    openModal(`<h2>分享 ${whatOf(ps)}</h2>
+      <p class="hint">收到連結的人用任何 Google 帳號登入就能看，<b>不需要被邀請</b>。他只看得到這 ${ps.length} 個檔案，看不到相簿裡其他照片和影片，也不能下載。連結 7 天後（${fmtDate(s.expiresAt)}）失效。</p>
+      <div class="sh-th">${ps.slice(0, 8).map(p => `<span class="tile"><img data-media="${p.albumId}/${p.id}/thumb" alt=""></span>`).join('')}${ps.length > 8 ? `<span class="more">+${ps.length - 8}</span>` : ''}</div>
+      <div class="share-list">
+        <a class="sh" href="https://line.me/R/msg/text/?${encodeURIComponent(S._shareCur.text + '\n' + S._shareCur.link)}" target="_blank" rel="noopener"><span class="mk line">LINE</span><span>傳到 LINE<small>傳送連結，點開登入就看得到</small></span></a>
+        ${one && S.me.canDownload && ps[0].kind !== 'video' ? `<button class="sh" data-act="shareFile"><span class="mk">${ic('image', 20)}</span><span>分享照片檔案<small>用手機的分享選單傳出照片本身</small></span></button>` : ''}
+        <button class="sh" data-act="copy" data-text="${esc(S._shareCur.link)}"><span class="mk">${ic('link', 20)}</span><span>複製連結</span></button>
+        ${navigator.share ? `<button class="sh" data-act="shareNative"><span class="mk">${ic('share', 20)}</span><span>其他應用程式</span></button>` : ''}
+      </div>
+      <p class="hint">想提早停止分享：到「${isAdmin() ? '管理' : '我的'}」的分享連結清單按「停用」。</p>
+      <button class="btn ghost" data-act="closeModal" style="width:100%;margin-top:.4rem">關閉</button>`);
+    if (S.sel) selEnd();
+  } catch (e) { if ($('#modal') === m) closeModal(); toast('產生分享連結失敗：' + (e.code || '')); }
 }
+async function fillShares() {
+  if (!$('#shBox')) return;
+  let xs = []; try { xs = await S.be.listShares(); } catch { return; }
+  const box = $('#shBox'); if (!box) return;
+  box.innerHTML = xs.length ? `<div class="card inv-list"><h3>${ic('share', 19)}分享中的連結</h3>${xs.map(s => {
+    const ps = s.ids.map(id => S.photos.find(p => p.id === id)).filter(Boolean);
+    return `<div class="inv"><span>${ic('link', 15)}${ps.length ? whatOf(ps) : s.ids.length + ' 個檔案'}${s.createdBy !== S.me.email ? ' · ' + esc(memberName(s.createdBy)) + '分享' : ''} · ${fmtDate(s.expiresAt)} 到期</span>
+      <span class="sp"></span><button class="btn ghost sm" data-act="copy" data-text="${esc(shareLink(s))}">複製</button><button class="btn ghost sm" data-act="revokeShare" data-id="${esc(s.id)}">停用</button></div>`; }).join('')}</div>` : '';
+}
+
+/* ---------- 打開別人傳來的分享連結（不需要是家人） ---------- */
+async function openShareView(code) {
+  S.share = { code, items: [] };
+  app.innerHTML = '<div class="center"><div class="spin"></div></div>';
+  try {
+    const d = await S.be.viewShare(code);
+    LS.set('pendingShare', '');
+    Object.assign(S.share, d); drawShareView();
+  } catch (e) {
+    S.share = null;
+    if (/TOKEN/.test(e.code || '')) return renderLogin('請重新登入');   // 分享碼先留著，登入後再打開
+    LS.set('pendingShare', '');
+    S.share = { code, items: [], dead: true };
+    const why = { SHARE_EXPIRED: '這個分享連結已經過期了', SHARE_INVALID: '這個分享連結已經停用了' }[e.code] || '讀取失敗：' + (e.code || e.message);
+    app.innerHTML = `<div class="center"><div class="card login"><div class="logo">${ic('link', 36)}</div><h2>${esc(why)}</h2>
+      <p class="hint">分享連結 7 天後會自動失效，也可能被分享的人停用了。想再看，請對方重新分享一次。</p>
+      <button class="btn ghost" data-act="leaveShare">回到相簿</button></div></div>`;
+  }
+}
+function drawShareView() {
+  const s = S.share, n = s.items.length;
+  app.innerHTML = `<header class="top"><div><h1>${esc(s.baby)}的${n ? ' ' + whatOf(s.items) : '照片'}</h1>
+      <div class="age">${s.from ? esc(s.from) + ' 分享給你 · ' : ''}${fmtDate(s.expiresAt)} 前可以看</div></div><span class="sp"></span>
+      ${s.member ? `<button class="btn ghost sm" data-act="leaveShare">進入相簿</button>` : ''}</header>
+    <main class="nocopy">${n ? `<div class="grid">${s.items.map((p, i) => `<button class="tile" data-act="shOpen" data-i="${i}" aria-label="查看"${p.ph ? ` style="background-image:url('${p.ph}')"` : ''}>
+        <img data-share="${i}" alt="" draggable="false">${p.kind === 'video' ? `<span class="b vid">${ic('play', 11, 'play')}${p.duration ? Math.floor(p.duration / 60) + ':' + pad(p.duration % 60) : ''}</span>` : ''}</button>`).join('')}</div>`
+      : `<div class="empty">${ic('image', 44)}<p>這些照片已經被移除，或不再分享了</p></div>`}
+      <p class="hint" style="text-align:center;margin-top:1.4rem">這是分享給你看的照片和影片，只能在這裡觀看，不能下載。</p></main>`;
+  app.querySelectorAll('img[data-share]').forEach(img => {
+    S.be.shareURL(s.code, s.items[+img.dataset.share], 'thumb').then(u => { img.onload = () => img.classList.add('ok'); img.src = u; })
+      .catch(() => img.closest('.tile')?.classList.add('err'));
+  });
+}
+async function drawShareLB() {
+  const s = S.share, i = s.lb, p = s.items[i], n = s.items.length;
+  let el = $('#lb'); if (!el) { el = document.createElement('div'); el.id = 'lb'; el.className = 'lb nocopy'; document.body.appendChild(el); document.body.style.overflow = 'hidden'; }
+  el.innerHTML = `
+    <div class="lb-top"><button class="ibtn" data-act="shClose" aria-label="關閉">${ic('close', 22)}</button>
+      <span class="d">${fmtDate(p.takenAt)}</span><span class="sp"></span><span class="d">${i + 1} / ${n}</span></div>
+    <div class="lb-stage" id="lbStage"${p.ph ? ` style="--ph:url('${p.ph}')"` : ''}>
+      ${p.kind === 'video' ? '<video id="lbMedia" controls playsinline preload="metadata" controlslist="nodownload noremoteplayback" disablepictureinpicture></video>' : '<img id="lbMedia" alt="" draggable="false">'}
+      ${i > 0 ? `<button class="nav prev" data-act="shGo" data-d="-1" aria-label="上一張">${ic('back', 22)}</button>` : ''}${i < n - 1 ? `<button class="nav next" data-act="shGo" data-d="1" aria-label="下一張">${ic('next', 22)}</button>` : ''}
+    </div>
+    ${p.caption || p.milestone ? `<div class="lb-info">${p.milestone ? `<div class="mschip">${ic('star', 15, 'fill')}${esc(p.milestone)}</div>` : ''}${p.caption ? `<p style="margin:.4rem 0;font-size:1.05rem">${esc(p.caption)}</p>` : ''}</div>` : ''}`;
+  const media = $('#lbMedia'), here = () => $('#lbMedia') === media;
+  media.addEventListener('contextmenu', e => e.preventDefault());
+  try {
+    if (media.tagName === 'IMG') {
+      let gotDisp = false;
+      S.be.shareURL(s.code, p, 'thumb').then(u => { if (!gotDisp && here()) media.src = u; }).catch(() => {});
+      const u = await S.be.shareURL(s.code, p, 'disp'); gotDisp = true; if (here()) media.src = u;
+    } else {
+      S.be.shareURL(s.code, p, 'thumb').then(u => { if (here()) media.poster = u; }).catch(() => {});
+      const pg = document.createElement('div'); pg.className = 'lb-prog'; pg.textContent = '影片載入中…'; $('#lbStage').appendChild(pg);
+      const u = await S.be.shareURL(s.code, p, 'full', f => pg.textContent = `影片載入中 ${Math.round(f * 100)}%`);
+      pg.remove(); if (here()) media.src = u;
+    }
+  } catch { toast('檔案讀取失敗'); }
+  let sx = null; const stage = $('#lbStage');
+  stage.ontouchstart = e => sx = e.touches[0].clientX;
+  stage.ontouchend = e => { if (sx === null) return; const dx = e.changedTouches[0].clientX - sx; sx = null; if (Math.abs(dx) > 60) shGo(dx < 0 ? 1 : -1); };
+}
+function shGo(d) { const s = S.share, j = s.lb + d; if (j < 0 || j >= s.items.length) return; s.lb = j; drawShareLB(); }
+function shClose() { $('#lb')?.remove(); document.body.style.overflow = ''; S.share.lb = null; }
 async function shareFile() {
   const p = curP();
   try {
@@ -1715,12 +1859,13 @@ const ACT = {
     try { await S.be.revokeInvite(el.dataset.id); toast('已停用'); fillInvites(); } catch { toast('停用失敗'); } },
   selStart: () => selStart(),
   selCancel: () => selEnd(),
-  selToggle: el => { const k = el.dataset.key, p = keyP(k); if (!p || !canDel(p)) return toast(isAdmin() ? '這張不能選' : '只能刪除自己上傳的照片');
+  selToggle: el => { const k = el.dataset.key, p = keyP(k); if (!p || !canSel(p)) return toast('這張不能選');
     S.sel.has(k) ? S.sel.delete(k) : S.sel.add(k); const on = S.sel.has(k); el.classList.toggle('on', on); el.setAttribute('aria-pressed', on); el.querySelector('.ck').innerHTML = on ? ic('check', 16) : ''; drawSelBar(); },
-  selMonth: el => { const k = Number(el.dataset.k); visiblePhotos().filter(p => { const d = new Date(p.takenAt); return d.getFullYear() * 100 + d.getMonth() === k && canDel(p); })
+  selMonth: el => { const k = Number(el.dataset.k); visiblePhotos().filter(p => { const d = new Date(p.takenAt); return d.getFullYear() * 100 + d.getMonth() === k && canSel(p); })
     .forEach(p => S.sel.add(p.albumId + '/' + p.id)); render(); drawSelBar(); },
-  selDo: async el => { const st = el.dataset.s, keys = [...S.sel]; if (!keys.length) return;
-    if (st === 'trash' && !confirm(`把 ${keys.length} 張移到回收桶？（30 天內可還原）`)) return;
+  selDo: async el => { const st = el.dataset.s, keys = [...S.sel].filter(k => { const p = keyP(k); return p && canDel(p); }); if (!keys.length) return;
+    const skip = S.sel.size - keys.length;
+    if (st === 'trash' && !confirm(`把 ${keys.length} 張移到回收桶？（30 天內可還原）${skip ? `\n另外 ${skip} 張不是你上傳的，不會刪除。` : ''}`)) return;
     el.disabled = true; try { const n = await bulkApply(keys, st); toast(st === 'trash' ? `已把 ${n} 張移到回收桶` : `已隱藏 ${n} 張`); selEnd(); } catch (e) { el.disabled = false; toast('失敗：' + (e.code || '')); } },
   dupToggle: el => { const k = el.dataset.key; S.dupSel.has(k) ? S.dupSel.delete(k) : S.dupSel.add(k);
     const g = S.dups.find(g => g.some(p => p.albumId + '/' + p.id === k)); if (g && g.every(p => S.dupSel.has(p.albumId + '/' + p.id))) toast('這組全部都勾了，整組都會被刪除'); drawDups(); },
@@ -1731,7 +1876,14 @@ const ACT = {
   download: () => downloadCur(),
   shareOpen: () => openShare(),
   shareFile: () => shareFile(),
-  shareNative: async () => { const p = curP(); try { await navigator.share({ title: shareText(p), text: shareText(p), url: shareLink(p) }); closeModal(); } catch (e) { if (e.name !== 'AbortError') toast('分享失敗'); } },
+  shareNative: async () => { const c = S._shareCur; try { await navigator.share({ title: c.text, text: c.text, url: c.link }); closeModal(); } catch (e) { if (e.name !== 'AbortError') toast('分享失敗'); } },
+  selShare: () => openShareFor([...S.sel].map(keyP)),
+  revokeShare: async el => { if (!confirm('停用這個分享連結？收到連結的人就看不到了。')) return;
+    try { await S.be.revokeShare(el.dataset.id); toast('已停用'); fillShares(); } catch { toast('停用失敗'); } },
+  shOpen: el => { S.share.lb = +el.dataset.i; drawShareLB(); },
+  shGo: el => shGo(+el.dataset.d),
+  shClose: () => shClose(),
+  leaveShare: () => { $('#lb')?.remove(); document.body.style.overflow = ''; S.share = null; loadAll(); },
   like: async () => { const p = curP(), on = !(p.likes || []).includes(S.me.email);
     try { await S.be.toggleLike(p, S.me.email, on); p.likes = on ? [...(p.likes || []), S.me.email] : p.likes.filter(e => e !== S.me.email); const sp = findPhoto(p.albumId, p.id); if (sp && sp !== p) sp.likes = p.likes; drawLB(); } catch { toast('失敗了，再試一次'); } },
   addCmt: async () => { const t = $('#cmtIn').value.trim(); if (!t) return; const p = curP();
