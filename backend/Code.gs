@@ -303,6 +303,13 @@ const SHARE = {
     need(p && p.kind === 'video', 'NOT_FOUND');
     return readChunk(p, req);
   },
+  // 舊版分享連結（?p=相簿~照片）：沒被邀請的人只看得到那一張的小縮圖，而且只限「所有家人」都能看的相簿
+  oldThumb(req) {
+    const p = getOne('photos', String(req.id || '')), a = p && getOne('albums', p.albumId);
+    need(p && p.state === 'normal' && a && a.id === String(req.album || '') && a.visibility === 'everyone', 'NOT_FOUND');
+    const m = fetchMedia([p], 'thumb'); need(m[p.id], 'NOT_FOUND');
+    return { b64: m[p.id], kind: p.kind, takenAt: p.takenAt, baby: (getOne('config', 'baby') || {}).babyName || '寶寶' };
+  },
 };
 
 /* ---------- API ---------- */

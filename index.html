@@ -149,6 +149,7 @@ html.big .grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}
 .sh-th .tile{width:3.4rem;height:3.4rem;aspect-ratio:auto;flex:none}
 .sh-th .more{width:3.4rem;height:3.4rem;border-radius:6px;background:var(--tint);display:grid;place-items:center;font-size:.85rem;font-weight:700;color:var(--sub)}
 .nocopy video{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+.old-th{display:block;width:12rem;max-width:100%;aspect-ratio:1;object-fit:cover;border-radius:16px;margin:0 auto;background:var(--tint)}
 
 .feed-av{display:flex;gap:.9rem;overflow-x:auto;padding:.4rem 0 .6rem}
 .feed-av .p{flex:none;text-align:center;width:4.2rem;font-size:.74rem;color:var(--sub)}
@@ -634,6 +635,7 @@ function makeGAS(url, clientId) {
     listShares() { return call('listShares'); },
     revokeShare(id) { return call('revokeShare', { id }); },
     viewShare(code) { return call('viewShare', { code }); },
+    async oldThumb(album, id) { const r = await call('oldThumb', { album, id }); return { ...r, url: URL.createObjectURL(b64ToBlob(r.b64, 'image/jpeg')) }; },
     shareURL,
     setMyNotify(on) { return call('setMyNotify', { on }); },
     testMail() { return call('testMail'); },
@@ -741,6 +743,8 @@ function makeDemo() {
     async viewShare(code) { const s = this._sh.find(x => x.id === code && !x.revoked); if (!s) throw mkErr('SHARE_INVALID');
       return { expiresAt: s.expiresAt, from: members.find(m => m.email === s.createdBy)?.name || '', baby: cfg.babyName, member: true,
         items: photos.filter(p => s.ids.includes(p.id) && p.state === 'normal').map(p => ({ id: p.id, kind: p._demoVideo ? 'image' : p.kind, takenAt: p.takenAt, caption: p.caption, milestone: p.milestone })) }; },
+    async oldThumb(album, id) { const p = photos.find(x => x.id === id && x.albumId === album && x.state === 'normal'), a = albums.find(x => x.id === album);
+      if (!p || a?.visibility !== 'everyone') throw mkErr('NOT_FOUND'); return { url: p._url.thumb, kind: p.kind, takenAt: p.takenAt, baby: cfg.babyName }; },
     async shareURL(code, p, which) { const src = photos.find(x => x.id === p.id); return src._url[which] || src._url.disp || src._url.full || src._url.thumb; },
     async setMyNotify(on) { const m = members.find(x => x.email === current); m.notify = on; return { notify: on }; },
     async testMail() { return { quota: 99 }; },
@@ -906,17 +910,26 @@ function renderNotInvited(email, why) {
       <button class="btn ghost" data-act="signOut">換帳號</button>
     </div></div></div>`;
 }
-// 沒被邀請的人點到舊版的分享連結（?p=相簿~照片）：舊連結只有家人能開，請對方用新的分享功能重傳
-function renderOldShare(email) {
+const TEST_NOTE = '分享功能目前還在測試，會陸續更新。';
+// 沒被邀請的人點到舊版的分享連結（?p=相簿~照片）：「所有家人」相簿的照片給看小縮圖，其他只顯示說明
+async function renderOldShare(email) {
   email = email || S.be.currentEmail();
-  app.innerHTML = `<div class="center"><div class="card login">
-    <div class="logo">${ic('link', 36)}</div><h2>這是舊的分享連結</h2>
-    <p>舊的分享連結只有相簿裡的家人能打開。</p>
-    <p class="hint">請分享給你的人打開相簿，選好照片後按「分享」，再把新的連結傳給你。新的連結不需要被邀請，用 Google 帳號登入就能看。</p>
+  app.innerHTML = '<div class="center"><div class="spin"></div></div>';
+  const [aid, pid] = (new URLSearchParams(location.search).get('p') || '').split('~');
+  let t = null; try { t = await S.be.oldThumb(aid, pid); } catch {}
+  app.innerHTML = `<div class="center"><div class="card login nocopy">
+    ${t ? `<img class="old-th" src="${t.url}" alt="" draggable="false"><p class="hint" style="margin:.4rem 0 0">${esc(t.baby)}的${t.kind === 'video' ? '影片' : '照片'} · ${fmtDate(t.takenAt)}</p>
+      <p style="margin-top:1rem">這是小張的預覽圖${t.kind === 'video' ? '，影片要用新的連結才能播放' : ''}。</p>
+      <p class="hint">想看大張的${t.kind === 'video' ? '影片' : '照片'}，請分享給你的人打開相簿，選好照片後按「分享」，再把新的連結傳給你。</p>`
+    : `<div class="logo">${ic('link', 36)}</div><h2>這是舊的分享連結</h2>
+      <p>舊的分享連結只有相簿裡的家人能打開。</p>
+      <p class="hint">請分享給你的人打開相簿，選好照片後按「分享」，再把新的連結傳給你。新的連結不需要被邀請，用 Google 帳號登入就能看。</p>`}
+    <p class="note" style="justify-content:center">${ic('alert', 16)}${TEST_NOTE}</p>
     <p class="hint">你登入的帳號是 <b>${esc(email)}</b></p>
     <div class="row" style="justify-content:center;margin-top:.8rem">
       <button class="btn ghost" data-act="signOut">換帳號</button>
     </div></div></div>`;
+  $('.old-th')?.addEventListener('contextmenu', e => e.preventDefault());
 }
 function renderInApp() {
   app.innerHTML = `<div class="center"><div class="card login"><div class="logo">${ic('globe', 36)}</div><h2>請用瀏覽器打開</h2>
@@ -1690,7 +1703,7 @@ function drawShareView() {
     <main class="nocopy">${n ? `<div class="grid">${s.items.map((p, i) => `<button class="tile" data-act="shOpen" data-i="${i}" aria-label="查看"${p.ph ? ` style="background-image:url('${p.ph}')"` : ''}>
         <img data-share="${i}" alt="" draggable="false">${p.kind === 'video' ? `<span class="b vid">${ic('play', 11, 'play')}${p.duration ? Math.floor(p.duration / 60) + ':' + pad(p.duration % 60) : ''}</span>` : ''}</button>`).join('')}</div>`
       : `<div class="empty">${ic('image', 44)}<p>這些照片已經被移除，或不再分享了</p></div>`}
-      <p class="hint" style="text-align:center;margin-top:1.4rem">這是分享給你看的照片和影片，只能在這裡觀看，不能下載。</p></main>`;
+      <p class="hint" style="text-align:center;margin-top:1.4rem">這是分享給你看的照片和影片，只能在這裡觀看，不能下載。<br>${TEST_NOTE}</p></main>`;
   app.querySelectorAll('img[data-share]').forEach(img => {
     S.be.shareURL(s.code, s.items[+img.dataset.share], 'thumb').then(u => { img.onload = () => img.classList.add('ok'); img.src = u; })
       .catch(() => img.closest('.tile')?.classList.add('err'));
