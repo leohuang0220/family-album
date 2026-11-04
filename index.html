@@ -1024,7 +1024,7 @@ function memories() {
 }
 function viewTimeline() {
   const ps = visiblePhotos(), al = S.albumId && albumById(S.albumId);
-  const head = al ? `<div class="row" style="margin-bottom:.4rem"><span class="chip">${ic('folder', 15)}${esc(al.name)}<span class="vis">${visIc(al.visibility, 12)}${visShort(al.visibility)}</span></span><button class="chip" data-act="clearAlbum">${ic('close', 13)}看全部</button></div>` : '';
+  const head = al ? `<div class="row" style="margin-bottom:.4rem"><span class="chip">${ic('folder', 15)}${esc(al.name)}${isAdmin() ? `<span class="vis">${visIc(al.visibility, 12)}${visShort(al.visibility)}</span>` : ''}</span><button class="chip" data-act="clearAlbum">${ic('close', 13)}看全部</button></div>` : '';
   const bc = !S.albumId ? babyCard() : '';
   if (!ps.length) return bc + head + `<div class="empty">${ic('image', 44)}<p>這裡還沒有照片</p>${uploadableAlbums().length ? '<p class="hint">按下方的加號，上傳第一張吧。</p>' : ''}</div>`;
   const newCount = ps.filter(p => p.createdAt > S.prevSeen && p.uploader !== S.me.email).length;
@@ -1059,7 +1059,7 @@ function viewAlbums() {
     const extra = (a.allowed || []).length ? `，另開放 ${a.allowed.length} 人` : '';
     return `<div class="album"><button data-act="openAlbum" data-id="${a.id}" style="width:100%;text-align:left;display:block">
       <div class="cv${cover && cover.h > cover.w * 1.1 ? ' por' : ''}"${cover?.ph ? ` style="--ph:url('${cover.ph}')"` : ''}>${cover ? `<img data-media="${cover.albumId}/${cover.id}/${cover.kind === 'video' ? 'thumb' : 'disp'}" alt="">` : ic('image', 34)}</div>
-      <div class="meta"><b>${esc(a.name)}</b><small><span>${ps.length} 項</span><span class="vis">${visIc(a.visibility, 12)}${visShort(a.visibility)}${extra}</span>${a.allowUpload ? '<span>可上傳</span>' : ''}</small></div></button>
+      <div class="meta"><b>${esc(a.name)}</b><small><span>${ps.length} 項</span>${isAdmin() ? `<span class="vis">${visIc(a.visibility, 12)}${visShort(a.visibility)}${extra}</span>` : ''}${isAdmin() && a.allowUpload ? '<span>可上傳</span>' : ''}</small></div></button>
       ${isAdmin() ? `<button class="edit" data-act="editAlbum" data-id="${a.id}">${ic('edit', 13)}權限</button>` : ''}</div>`;
   }).join('');
   return `<div class="row" style="margin-bottom:.8rem"><b style="font-size:1.15rem">相簿</b><span class="sp"></span>${isAdmin() ? `<button class="btn sm" data-act="editAlbum">${ic('plus', 16)}新增相簿</button>` : ''}</div>
@@ -1479,8 +1479,8 @@ function openMove(ps) {
   const from = new Set(ps.map(p => p.albumId)), targets = uploadableAlbums().filter(a => !(from.size === 1 && from.has(a.id)));
   if (!targets.length) return toast('沒有其他可以放的相簿');
   S._move = ps;
-  openModal(`<h2>移到哪一本相簿？</h2><p class="hint">要移動 ${ps.length} 個檔案。移過去之後，誰看得到會照新相簿的設定。</p>
-    <div class="movelist">${targets.map(a => `<button class="btn ghost" data-act="doMove" data-to="${a.id}" style="width:100%;justify-content:flex-start;margin-bottom:.45rem">${ic('folder', 17)}${esc(a.name)}<span class="sp"></span><small class="hint">${visShort(a.visibility)}</small></button>`).join('')}</div>
+  openModal(`<h2>移到哪一本相簿？</h2><p class="hint">要移動 ${ps.length} 個檔案。${isAdmin() ? '移過去之後，誰看得到會照新相簿的設定。' : ''}</p>
+    <div class="movelist">${targets.map(a => `<button class="btn ghost" data-act="doMove" data-to="${a.id}" style="width:100%;justify-content:flex-start;margin-bottom:.45rem">${ic('folder', 17)}${esc(a.name)}<span class="sp"></span>${isAdmin() ? `<small class="hint">${visShort(a.visibility)}</small>` : ''}</button>`).join('')}</div>
     <button class="btn ghost" data-act="closeModal" style="width:100%">取消</button>`);
 }
 async function doMove(to) {
