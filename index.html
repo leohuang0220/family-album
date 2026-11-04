@@ -1,0 +1,2046 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>寶寶家庭相簿</title>
+<link rel="manifest" href="app.webmanifest">
+<link rel="icon" href="c-favicon.png">
+<link rel="apple-touch-icon" href="c-apple-touch-icon.png">
+<meta name="theme-color" content="#F6F9FB">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<script src="https://accounts.google.com/gsi/client" async></script>
+<style>
+:root{
+  --bg:#F6F9FB;--surface:#FFFFFF;--tint:#EDF3F7;--line:#E2E9EE;
+  --ink:#1D2A35;--sub:#667785;
+  --accent:#2E7DA8;--accent-soft:#E4F0F7;
+  --like:#DD5B78;--like-soft:#FCE9EE;
+  --gold:#8A5A0B;--gold-soft:#FBF1D9;--danger:#C0414B;--ok:#2F8F6B;
+  --r:16px;--shadow:0 1px 2px rgba(29,42,53,.05),0 8px 24px rgba(29,42,53,.06);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{font-size:16px}
+html.big{font-size:20px}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.55;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none;padding:0}
+a{color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
+.ic{display:inline-block;vertical-align:middle;flex:none}
+.ic.fill{fill:currentColor}
+.ic.play{fill:currentColor;stroke:none}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;white-space:nowrap;background:var(--accent);color:#fff;border-radius:12px;padding:.62rem 1.1rem;font-weight:600;transition:background .15s}
+.btn:hover{background:#276a90}
+.btn.ghost{background:var(--surface);color:var(--ink);border:1px solid var(--line)}
+.btn.ghost:hover{background:var(--tint)}
+.btn.danger{background:var(--danger)}
+.btn.line{background:#06A94D;text-decoration:none;color:#fff}
+.btn.sm{padding:.38rem .75rem;font-size:.86rem;border-radius:10px}
+.btn:disabled{opacity:.45;cursor:default}
+input,select,textarea{width:100%;border:1px solid var(--line);border-radius:12px;padding:.62rem .8rem;background:var(--surface)}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--accent-soft);border-color:var(--accent)}
+textarea{min-height:4.5rem;resize:vertical}
+label.f{display:block;margin:.9rem 0 .3rem;font-weight:600;font-size:.9rem}
+.hint{color:var(--sub);font-size:.84rem}
+.row{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
+.sp{flex:1}
+.chk{display:flex;gap:.6rem;align-items:center;margin:.45rem 0}
+.chk input{width:auto;transform:scale(1.2);accent-color:var(--accent)}
+
+header.top{position:sticky;top:0;z-index:20;background:rgba(246,249,251,.92);backdrop-filter:blur(12px);padding:calc(.7rem + env(safe-area-inset-top)) 1rem .7rem;display:flex;align-items:center;gap:.4rem;border-bottom:1px solid var(--line)}
+header.top h1{font-size:1.3rem;font-weight:700;margin:0;letter-spacing:.01em;line-height:1.25}
+header.top .age{font-size:.82rem;color:var(--sub)}
+.ibtn{position:relative;width:2.5rem;height:2.5rem;border-radius:12px;display:grid;place-items:center;color:var(--ink)}
+.ibtn:hover{background:var(--tint)}
+.ibtn .dot{position:absolute;top:.5rem;right:.55rem;width:.55rem;height:.55rem;border-radius:50%;background:var(--like);border:2px solid var(--bg)}
+.demo{background:var(--gold-soft);color:var(--gold);border-radius:8px;padding:.1rem .5rem;font-size:.75rem;font-weight:600}
+.demo-sel{width:auto;padding:.35rem .6rem;font-size:.82rem}
+main{padding:1rem 1rem calc(6.5rem + env(safe-area-inset-bottom));max-width:980px;margin:0 auto}
+
+nav.bottom{position:fixed;bottom:0;left:0;right:0;z-index:20;background:rgba(255,255,255,.96);backdrop-filter:blur(12px);border-top:1px solid var(--line);display:flex;justify-content:space-around;align-items:center;padding:.3rem .4rem calc(.3rem + env(safe-area-inset-bottom))}
+nav.bottom button{position:relative;display:flex;flex-direction:column;align-items:center;gap:.1rem;font-size:.72rem;color:var(--sub);min-width:3.8rem;padding:.35rem .2rem}
+nav.bottom button.on{color:var(--accent);font-weight:700}
+nav.bottom button.on::before{content:"";position:absolute;top:-.3rem;left:30%;right:30%;height:3px;border-radius:0 0 3px 3px;background:var(--accent)}
+nav.bottom .fab{width:3.4rem;height:3.4rem;min-width:0;border-radius:18px;background:var(--accent);color:#fff;justify-content:center;box-shadow:0 8px 20px rgba(46,125,168,.35);margin-top:-1.3rem}
+nav.bottom .fab::before{display:none}
+
+.chip{display:inline-flex;align-items:center;gap:.35rem;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:.25rem .65rem;font-size:.84rem}
+.note{display:flex;align-items:center;gap:.5rem;background:var(--accent-soft);color:#1f5f82;border-radius:12px;padding:.55rem .8rem;font-size:.9rem;margin:.6rem 0}
+
+.mem{margin:.4rem 0 1.2rem}
+.mem h2{font-size:1rem;margin:0 0 .5rem;display:flex;align-items:center;gap:.4rem}
+.mem .strip{display:flex;gap:.5rem;overflow-x:auto;padding-bottom:.3rem;scroll-snap-type:x proximity}
+.mem .strip .tile{flex:none;width:7.5rem;height:9rem;aspect-ratio:auto;border-radius:12px;scroll-snap-align:start}
+.mem .lab{position:absolute;left:6px;bottom:6px;background:rgba(255,255,255,.92);border-radius:8px;padding:.05rem .45rem;font-size:.72rem;font-weight:600}
+
+.month{margin:1.5rem 0 .55rem;display:flex;align-items:flex-end;gap:.7rem}
+.month .age{font-size:1.35rem;font-weight:700;line-height:1.1;letter-spacing:.01em}
+.month .date{font-size:.84rem;color:var(--sub)}
+.month .cnt{margin-left:auto;font-size:.8rem;color:var(--sub)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(106px,1fr));gap:3px}
+html.big .grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}
+.tile{position:relative;aspect-ratio:1;border-radius:6px;overflow:hidden;background:var(--tint);padding:0;display:block}
+.tile img{width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .3s;display:block}
+.tile img.ok{opacity:1}
+.tile .b{position:absolute;display:inline-flex;align-items:center;gap:.2rem;font-size:.7rem;font-weight:700;border-radius:8px;padding:.05rem .4rem;line-height:1.35}
+.tile .new{top:5px;left:5px;background:var(--accent);color:#fff}
+.tile .vid{bottom:5px;right:5px;background:rgba(29,42,53,.62);color:#fff}
+.tile .ms{top:5px;right:5px;background:var(--gold-soft);color:var(--gold)}
+.tile .hid{bottom:5px;left:5px;background:rgba(29,42,53,.62);color:#fff}
+.tile .lk{bottom:5px;left:5px;background:rgba(255,255,255,.92);color:var(--like)}
+.tile.err::after{content:"無法載入";position:absolute;inset:0;display:grid;place-items:center;font-size:.75rem;color:var(--sub)}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:1.1rem;margin-bottom:1rem}
+.card h3{margin:0 0 .6rem;font-size:1.02rem;display:flex;align-items:center;gap:.45rem}
+.albums{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.8rem}
+.album{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;text-align:left;position:relative}
+.album .cv{aspect-ratio:4/3;background:var(--tint);display:grid;place-items:center;color:#9db0bd;overflow:hidden}
+.album .cv img{width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .3s}
+.album .cv img.ok{opacity:1}
+.album .meta{padding:.65rem .8rem .75rem}
+.album .meta b{display:block;font-size:1rem}
+.album .meta small{color:var(--sub);display:flex;flex-wrap:wrap;gap:.2rem .5rem;align-items:center;margin-top:.1rem}
+.album .edit{position:absolute;top:.5rem;right:.5rem;background:rgba(255,255,255,.94);border:1px solid var(--line);border-radius:10px;padding:.2rem .55rem;font-size:.8rem;display:inline-flex;align-items:center;gap:.25rem}
+.vis{display:inline-flex;align-items:center;gap:.25rem;font-size:.76rem;border-radius:8px;padding:.05rem .45rem;background:var(--tint);color:var(--sub)}
+.empty{text-align:center;color:var(--sub);padding:3.5rem 1rem}
+.empty .ic{color:#a9bac6;margin-bottom:.4rem}
+
+.ms-list .it{display:flex;gap:.9rem;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:.6rem;margin-bottom:.6rem;width:100%;text-align:left}
+.ms-list .th{width:76px;height:76px;border-radius:12px;overflow:hidden;flex:none;background:var(--tint)}
+.ms-list .th img{width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .3s}
+.ms-list .th img.ok{opacity:1}
+.ms-list b{display:flex;align-items:center;gap:.35rem}
+.ms-list b .ic{color:#C99512}
+.ms-list small{color:var(--sub)}
+
+.mrow{display:flex;gap:.75rem;align-items:center;padding:.7rem 0;border-bottom:1px solid var(--line)}
+.mrow:last-child{border:0}
+.av{width:2.6rem;height:2.6rem;border-radius:50%;display:grid;place-items:center;font-weight:700;color:#fff;flex:none}
+.mrow .info{flex:1;min-width:0}
+.mrow .info small{display:block;color:var(--sub)}
+.role{font-size:.72rem;border-radius:8px;padding:.05rem .45rem;font-weight:600}
+.role.admin{background:var(--accent-soft);color:#1f5f82}
+.role.family{background:#E3F4EC;color:#216b4f}
+.role.viewer{background:var(--tint);color:var(--sub)}
+.log{font-size:.88rem;padding:.4rem 0;border-bottom:1px dashed var(--line)}
+.log small{color:var(--sub);margin-right:.5rem}
+.mini-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:.5rem}
+.mini-grid .m{background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:.75rem}
+.mini-grid .m .tile{border-radius:0}
+.mini-grid .m .acts{display:flex;flex-direction:column;gap:3px;padding:5px}
+
+.modal{position:fixed;inset:0;z-index:70;background:rgba(29,42,53,.4);display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--bg);width:100%;max-width:560px;max-height:92vh;overflow:auto;border-radius:22px 22px 0 0;padding:1.2rem 1.2rem calc(1.3rem + env(safe-area-inset-bottom))}
+@media(min-width:700px){.modal{align-items:center}.sheet{border-radius:22px}}
+.sheet h2{margin:0 0 .3rem;font-size:1.2rem}
+.prog .p{display:flex;justify-content:space-between;font-size:.86rem;padding:.3rem 0;border-bottom:1px dashed var(--line)}
+.prog .ok{color:var(--ok);font-weight:600}.prog .bad{color:var(--danger)}
+
+.share-list{display:grid;gap:.5rem;margin-top:.8rem}
+.sh{display:flex;align-items:center;gap:.8rem;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:.8rem 1rem;text-align:left;text-decoration:none;color:var(--ink);font-weight:600}
+.sh:hover{background:var(--tint)}
+.sh .mk{width:2.2rem;height:2.2rem;border-radius:10px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent);flex:none}
+.sh .mk.line{background:#06A94D;color:#fff;font-size:.62rem;font-weight:800;letter-spacing:.02em}
+.sh small{display:block;font-weight:400;color:var(--sub)}
+.sh-th{display:flex;gap:4px;flex-wrap:wrap;margin:.7rem 0 .2rem}
+.sh-th .tile{width:3.4rem;height:3.4rem;aspect-ratio:auto;flex:none}
+.sh-th .more{width:3.4rem;height:3.4rem;border-radius:6px;background:var(--tint);display:grid;place-items:center;font-size:.85rem;font-weight:700;color:var(--sub)}
+.nocopy video{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+.old-th{display:block;width:12rem;max-width:100%;aspect-ratio:1;object-fit:cover;border-radius:16px;margin:0 auto;background:var(--tint)}
+
+.feed-av{display:flex;gap:.9rem;overflow-x:auto;padding:.4rem 0 .6rem}
+.feed-av .p{flex:none;text-align:center;width:4.2rem;font-size:.74rem;color:var(--sub)}
+.feed-av .p b{display:block;color:var(--ink);font-size:.82rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.feed-av .av{margin:0 auto .2rem}
+.fi{padding:.8rem 0;border-bottom:1px solid var(--line)}
+.fi:last-child{border:0}
+.fi .t{font-size:.92rem}
+.fi .t small{color:var(--sub);margin-left:.3rem}
+.fi .th{display:flex;gap:4px;margin-top:.5rem}
+.fi .th .tile{width:4.2rem;height:4.2rem;aspect-ratio:auto;flex:none}
+
+.lb{position:fixed;inset:0;z-index:60;background:var(--bg);color:var(--ink);display:flex;flex-direction:column}
+.lb-top{display:flex;align-items:center;gap:.2rem;padding:calc(.4rem + env(safe-area-inset-top)) .6rem .4rem;background:var(--surface);border-bottom:1px solid var(--line)}
+.lb-top .d{font-size:.88rem;color:var(--sub);margin-left:.3rem}
+.lb-stage{position:relative;flex:1;min-height:38vh;display:grid;place-items:center;overflow:hidden;background:#E9EFF3;touch-action:pan-y}
+.lb-stage img,.lb-stage video{max-width:100%;max-height:100%;object-fit:contain}
+.nocopy img{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;-webkit-user-drag:none}
+.lb-stage .nav{position:absolute;top:50%;transform:translateY(-50%);color:var(--ink);background:rgba(255,255,255,.88);border:1px solid var(--line);border-radius:50%;width:2.8rem;height:2.8rem;display:grid;place-items:center}
+.lb-stage .prev{left:.5rem}.lb-stage .next{right:.5rem}
+.lb-prog{position:absolute;bottom:1rem;left:50%;transform:translateX(-50%);background:rgba(29,42,53,.75);color:#fff;border-radius:10px;padding:.3rem .8rem;font-size:.85rem}
+.lb-info{background:var(--surface);border-top:1px solid var(--line);padding:.9rem 1rem calc(1rem + env(safe-area-inset-bottom));max-height:46vh;overflow:auto}
+.lb-acts{display:flex;gap:.45rem;flex-wrap:wrap;margin:.6rem 0}
+.like.on{background:var(--like-soft);border-color:#F2B9C6;color:var(--like)}
+.like.on .ic{fill:currentColor}
+.mschip{display:inline-flex;align-items:center;gap:.3rem;background:var(--gold-soft);color:var(--gold);border-radius:10px;padding:.2rem .65rem;font-size:.85rem;font-weight:600}
+.cmt{padding:.5rem 0;border-bottom:1px dashed var(--line);font-size:.93rem}
+.cmt small{color:var(--sub)}
+.cmt .del{color:var(--sub);font-size:.78rem;text-decoration:underline}
+.toast{position:fixed;left:50%;bottom:calc(6.5rem + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:#fff;padding:.6rem 1rem;border-radius:12px;z-index:99;font-size:.9rem;box-shadow:var(--shadow);max-width:90vw;text-align:center}
+
+.center{min-height:100vh;display:grid;place-items:center;padding:1.5rem}
+.login{max-width:420px;text-align:center;padding:2rem 1.5rem}
+.login .logo{width:4.4rem;height:4.4rem;margin:0 auto .6rem;border-radius:22px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent)}
+.login h1{margin:.2rem 0 .6rem;font-size:1.5rem}
+.login h2{margin:.2rem 0 .6rem}
+.spin{width:2.4rem;height:2.4rem;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:s 1s linear infinite;margin:auto}
+@keyframes s{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation-duration:3s}.tile img,.album .cv img{transition:none}}
+
+
+.bav{display:inline-flex;flex:none;border-radius:50%;overflow:hidden;align-items:flex-end;justify-content:center}
+.bav img,.bav svg{width:100%;height:100%;object-fit:cover;display:block}
+header.top{gap:.65rem}
+.bcard{display:flex;gap:.9rem;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:.85rem 1rem;margin-bottom:1rem}
+.bcard .grow{flex:1;min-width:0}.bcard b{font-size:1.15rem;display:block}.bcard .full{font-weight:400;color:var(--sub);font-size:.9rem;margin-left:.45rem}
+.bcard small{display:block;color:var(--sub);font-size:.85rem;margin-top:.1rem}.bcard small.nx{display:flex;gap:.3rem;align-items:center;color:var(--accent)}
+.av-prev{display:flex;justify-content:center;margin:.6rem 0}#avPrev{display:flex;flex-direction:column;align-items:center;gap:.3rem}
+.seg{display:flex;gap:.4rem;flex-wrap:wrap}.seg label{cursor:pointer}.seg input{position:absolute;opacity:0;width:0;height:0}
+.seg span{display:inline-block;padding:.5rem .95rem;border:1px solid var(--line);border-radius:999px;background:var(--surface);font-weight:600;font-size:.9rem}
+.seg input:checked+span{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.seg input:focus-visible+span{outline:2px solid var(--accent);outline-offset:2px}
+.tour{position:fixed;inset:0;z-index:90;background:var(--bg);display:flex;flex-direction:column;padding-top:env(safe-area-inset-top)}
+.tour .stage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:1.5rem;max-width:460px;width:100%;margin:0 auto}
+.tour .big-ic{width:128px;height:128px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;margin-bottom:1.6rem;overflow:hidden}
+.tour .big-ic .bav{width:128px!important;height:128px!important}
+.tour h2{font-size:1.5rem;margin:0 0 .6rem}.tour p{color:var(--sub);line-height:1.75;margin:0}
+.tour .foot{padding:1rem 1.2rem calc(1.2rem + env(safe-area-inset-bottom));display:flex;gap:.6rem;align-items:center;justify-content:space-between;max-width:460px;width:100%;margin:0 auto}
+.tour .skip{color:var(--sub);min-width:4rem;text-align:left;padding:.5rem 0}
+.tour .dots{display:flex;gap:.4rem}.tour .dots i{width:7px;height:7px;border-radius:4px;background:var(--line)}.tour .dots i.on{background:var(--accent);width:20px}
+
+.tile{background-size:cover;background-position:center}
+.tile.up img{opacity:.85}
+.tile .upbar{position:absolute;left:6px;right:6px;bottom:6px;height:5px;border-radius:3px;background:rgba(255,255,255,.75);overflow:hidden}
+.tile .upbar i{display:block;height:100%;background:var(--accent);border-radius:3px;transition:width .3s}
+.album .cv{position:relative;aspect-ratio:4/3}
+.album .cv::before{content:"";position:absolute;inset:-12px;background:var(--ph,none) center/cover;filter:blur(14px);opacity:.9}
+.album .cv img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.album .cv.por img{object-fit:contain}
+.album .cv>.ic{position:relative}
+.lb-stage::before{content:"";position:absolute;inset:-20px;background:var(--ph,none) center/cover;filter:blur(24px);opacity:.55}
+.lb-stage img,.lb-stage video{position:absolute;inset:0;width:100%;height:100%;max-width:none;max-height:none;object-fit:contain}
+.uppill{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(5.6rem + env(safe-area-inset-bottom));z-index:30;display:flex;align-items:center;gap:.55rem;background:var(--surface);border:1px solid var(--line);box-shadow:0 6px 24px rgba(29,42,53,.14);border-radius:999px;padding:.5rem .6rem .5rem .9rem;font-weight:600;font-size:.9rem;max-width:92vw;white-space:nowrap}
+.uppill small{color:var(--sub);font-weight:400;font-size:.78rem}
+.uppill .ic{color:var(--danger)}
+.spin.sm{width:16px;height:16px;border-width:2px;margin:0}
+
+/* 平板與電腦：版面跟著視窗變寬 */
+@media (min-width:700px){
+  .grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:4px}
+  .albums{grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem}
+}
+@media (min-width:960px){
+  body{padding-left:92px}
+  nav.bottom{top:0;bottom:0;right:auto;width:92px;flex-direction:column;justify-content:flex-start;gap:.5rem;padding:calc(1rem + env(safe-area-inset-top)) .3rem 1rem;border-top:0;border-right:1px solid var(--line)}
+  nav.bottom button{width:100%;padding:.6rem .2rem;font-size:.78rem}
+  nav.bottom button.on::before{top:20%;bottom:20%;left:-.3rem;right:auto;width:3px;height:auto;border-radius:0 3px 3px 0}
+  nav.bottom .fab{order:-1;margin:0 auto .8rem;width:3.2rem;height:3.2rem}
+  header.top{padding-inline:max(1.5rem, calc((100% - 1240px) / 2 + 1.5rem))}
+  main{max-width:1240px;padding:1.5rem 1.5rem 3rem}
+  main.narrow{max-width:780px}
+  .grid{grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:6px}
+  .tile{border-radius:8px}
+  .albums{grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
+  .bcard{max-width:640px}
+  .uppill{bottom:1.5rem;left:calc(50% + 46px)}
+  .toast{bottom:1.5rem;left:calc(50% + 46px)}
+  .lb{display:grid;grid-template-columns:minmax(0,1fr) 400px;grid-template-rows:auto minmax(0,1fr)}
+  .lb-top{grid-column:1 / -1}
+  .lb-stage{min-height:0}
+  .lb-info{max-height:none;border-top:0;border-left:1px solid var(--line);padding:1.2rem 1.3rem}
+  .lb-stage .prev{left:1rem}.lb-stage .next{right:1rem}
+}
+@media (min-width:1500px){
+  .grid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+}
+
+.tl-tools{display:flex;justify-content:flex-end;margin:.2rem 0 -.4rem}
+.tile.selm .ck{position:absolute;top:6px;right:6px;width:24px;height:24px;border-radius:50%;border:2px solid #fff;background:rgba(29,42,53,.25);display:grid;place-items:center;color:#fff;box-shadow:0 1px 4px rgba(0,0,0,.25)}
+.tile.selm.on .ck{background:var(--accent);border-color:#fff}
+.tile.selm.on img{transform:scale(.88);border-radius:6px}
+.tile.selm img{transition:transform .15s}
+.tile.selm.on{outline:3px solid var(--accent);outline-offset:-3px}
+.tile.selm.no{opacity:.45}
+.tile .keep{top:6px;left:6px;background:var(--ok);color:#fff}
+.selbar{position:fixed;left:0;right:0;bottom:0;z-index:40;display:flex;align-items:center;gap:.5rem;background:var(--surface);border-top:1px solid var(--line);box-shadow:0 -6px 20px rgba(29,42,53,.08);padding:.7rem 1rem calc(.7rem + env(safe-area-inset-bottom))}
+.selbar .btn[disabled]{opacity:.45}
+.dup-sum{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;justify-content:space-between;margin-bottom:1rem}
+.dup-g .grid{margin-bottom:.4rem}
+.pbar{height:6px;border-radius:3px;background:var(--line);overflow:hidden;margin-top:.5rem}.pbar i{display:block;height:100%;background:var(--accent);transition:width .2s}
+@media (min-width:960px){.selbar{left:92px}}
+
+.inv-list .inv{display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;padding:.45rem 0;border-top:1px dashed var(--line);font-size:.88rem}
+.inv-list .inv>span:first-child{display:inline-flex;align-items:center;gap:.35rem;min-width:0}
+.tour-chk{justify-content:center;margin-top:1rem;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:.6rem .9rem}
+</style>
+</head>
+<body>
+<div id="app"><div class="center"><div class="spin"></div></div></div>
+
+<script type="module">
+/* =====================================================================
+   ① 設定區：部署前只需要改這兩個地方（詳見「設定教學.md」）
+   ===================================================================== */
+
+// Apps Script「部署 → 網頁應用程式」的網址。保持空字串 = 示範模式（不連線，可先試玩）
+const API_URL = 'https://script.google.com/macros/s/AKfycbwaGlqUbD_olxWQMaGsdHHPa6G-bxGXBPmjpTf6z_AVBYCXPZBpIvB8MULSTFV0p37S/exec';
+// Google Cloud「OAuth 用戶端 ID」（和 Code.gs 裡的 CLIENT_ID 一樣）
+const GOOGLE_CLIENT_ID = '757802579785-c6nk6pv185ctk99sb7og309gegud0smm.apps.googleusercontent.com';
+
+/* ===================================================================== */
+
+const ROLES = {
+  admin:  { label: '管理者（爸媽）', short: '管理者', can: '看全部相簿、上傳、管理家人與權限、回收桶、動態紀錄' },
+  family: { label: '家人（可上傳）', short: '可上傳', can: '看開放的相簿、上傳到允許上傳的相簿、按愛心、留言' },
+  viewer: { label: '只能看', short: '只能看', can: '看開放的相簿、按愛心、留言' },
+};
+const VIS = {
+  everyone: { icon: 'globe', label: '所有家人' },
+  family:   { icon: 'home', label: '核心家人（管理者＋可上傳的家人）' },
+  parents:  { icon: 'lock', label: '只有爸媽' },
+};
+const RELATIONS = ['爺爺','奶奶','阿公','阿嬤','外公','外婆','叔叔','伯伯','姑姑','舅舅','阿姨','嬸嬸','哥哥','姊姊','保母','其他'];
+const MILESTONES = ['滿月','收涎','百日','第一次笑','第一次翻身','第一次坐','第一次爬','第一顆牙','第一次吃副食品','第一次站','第一次走路','第一次叫爸爸','第一次叫媽媽','第一次剪頭髮','第一次出遊','周歲抓周','生日'];
+const MAX_VIDEO = 200 * 1024 * 1024;
+
+/* ---------- 小工具 ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad = n => String(n).padStart(2, '0');
+const fmtDate = t => { const d = new Date(t); return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())}`; };
+const fmtTime = t => { const d = new Date(t); return `${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+const ago = t => { if (!t) return '還沒登入過'; const m = (Date.now()-t)/6e4; if (m<60) return '剛剛上線'; if (m<1440) return `${Math.floor(m/60)} 小時前上線`; return `${Math.floor(m/1440)} 天前上線`; };
+const fmtBytes = b => b > 1e9 ? (b/1e9).toFixed(2)+' GB' : (b/1e6).toFixed(1)+' MB';
+const LS = { get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+             set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
+const AV_COLORS = ['#ff8fa3','#8fd3c1','#9cc9f5','#ffb86b','#c9b6f2','#7fc8a9'];
+const avColor = s => AV_COLORS[[...s].reduce((a,c)=>a+c.charCodeAt(0),0) % AV_COLORS.length];
+function toast(msg, ms = 2600) { const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), ms); }
+
+function canSee(a, me) {
+  return me.role === 'admin' || a.visibility === 'everyone' || (a.visibility === 'family' && me.role === 'family') || (a.allowed || []).includes(me.email);
+}
+function canUploadTo(a, me) { return me.role === 'admin' || (me.role === 'family' && a.allowUpload && canSee(a, me)); }
+
+function babyAge(ts) {
+  if (!S.cfg.birthday) return '';
+  const b = new Date(S.cfg.birthday + 'T00:00:00'), d = new Date(ts);
+  if (d < b) return '出生前';
+  const days = Math.floor((d - b) / 864e5);
+  let m = (d.getFullYear()-b.getFullYear())*12 + d.getMonth() - b.getMonth(), day = d.getDate() - b.getDate();
+  if (day < 0) { m--; day += new Date(d.getFullYear(), d.getMonth(), 0).getDate(); }
+  if (m < 1) return `出生第 ${days+1} 天`;
+  const y = Math.floor(m/12), mm = m % 12;
+  return (y ? `${y} 歲` : '') + (mm ? `${mm} 個月` : '') + (day ? `${day} 天` : '');
+}
+
+/* ---------- 照片處理（壓縮＋自動去除 GPS 等 EXIF 隱私資訊） ---------- */
+async function exifDate(file) {
+  try {
+    const v = new DataView(await file.slice(0, 256 * 1024).arrayBuffer());
+    if (v.getUint16(0) !== 0xFFD8) return null;
+    let o = 2;
+    while (o < v.byteLength - 4) {
+      const mk = v.getUint16(o), len = v.getUint16(o + 2);
+      if (mk === 0xFFE1 && v.getUint32(o + 4) === 0x45786966) {
+        const t = o + 10, le = v.getUint16(t) === 0x4949;
+        const g16 = p => v.getUint16(p, le), g32 = p => v.getUint32(p, le);
+        const find = (ifd, tag) => { const n = g16(t + ifd); for (let i = 0; i < n; i++) { const e = t + ifd + 2 + i * 12; if (g16(e) === tag) return e; } return -1; };
+        const ifd0 = g32(t + 4);
+        let ent = -1;
+        const ex = find(ifd0, 0x8769);
+        if (ex >= 0) ent = find(g32(ex + 8), 0x9003);
+        if (ent < 0) ent = find(ifd0, 0x0132);
+        if (ent < 0) return null;
+        const off = t + g32(ent + 8); let s = '';
+        for (let i = 0; i < 19; i++) s += String.fromCharCode(v.getUint8(off + i));
+        const m = s.match(/(\d{4}):(\d\d):(\d\d) (\d\d):(\d\d):(\d\d)/);
+        return m ? new Date(+m[1], m[2]-1, +m[3], +m[4], +m[5], +m[6]).getTime() : null;
+      }
+      if ((mk & 0xFF00) !== 0xFF00) break;
+      o += 2 + len;
+    }
+  } catch {}
+  return null;
+}
+// 部分 Android（OPPO/realme 等）和 iPhone 的照片是 HEIC，瀏覽器讀不了 → 先轉成 JPEG
+const isHeic = f => /heic|heif/i.test(f.type || '') || /\.(heic|heif)$/i.test(f.name || '');
+let heicLib = null;
+async function heicToJpeg(file) {
+  if (!heicLib) heicLib = new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = 'https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js'; sc.onload = () => res(window.heic2any); sc.onerror = () => { heicLib = null; rej(new Error('load')); }; document.head.appendChild(sc); });
+  const conv = await heicLib, out = await conv({ blob: file, toType: 'image/jpeg', quality: 0.92 });
+  const b = Array.isArray(out) ? out[0] : out;
+  return new File([b], (file.name || 'photo').replace(/\.(heic|heif)$/i, '') + '.jpg', { type: 'image/jpeg', lastModified: file.lastModified });
+}
+async function loadImg(file) {
+  const tryDecode = async f => { const url = URL.createObjectURL(f); const img = new Image(); img.src = url; await img.decode(); return img; };
+  try { return await tryDecode(file); } catch {}
+  try { return await tryDecode(await heicToJpeg(file)); } catch {}
+  throw new Error('這張照片的格式讀不了，請換一張或先在手機轉成 JPG');
+}
+// 極小的預覽圖（約 1KB），存在資料裡，打開 App 就能先顯示模糊版
+function tinyPh(src, w, h) {
+  try { const s = 24 / Math.max(w || 1, h || 1), c = document.createElement('canvas'); c.width = Math.max(1, Math.round((w || 24) * s)); c.height = Math.max(1, Math.round((h || 24) * s));
+    c.getContext('2d').drawImage(src, 0, 0, c.width, c.height); return c.toDataURL('image/jpeg', 0.5); } catch { return ''; }
+}
+// 找重複照片用的 12×12 色塊指紋（約 600 字），上傳時順便算好
+function sigOf(src, w, h) {
+  try { const N = 12, c = document.createElement('canvas'); c.width = c.height = N; const g = c.getContext('2d', { willReadFrequently: true });
+    g.drawImage(src, 0, 0, N, N); const d = g.getImageData(0, 0, N, N).data, out = new Uint8Array(N * N * 3);
+    for (let i = 0; i < N * N; i++) { out[i * 3] = d[i * 4]; out[i * 3 + 1] = d[i * 4 + 1]; out[i * 3 + 2] = d[i * 4 + 2]; }
+    return { s: btoa(String.fromCharCode(...out)), r: +((w || 1) / (h || 1)).toFixed(3) }; } catch { return null; }
+}
+function resize(src, w, h, max, q) {
+  const s = Math.min(1, max / Math.max(w, h)); const c = document.createElement('canvas');
+  c.width = Math.round(w * s); c.height = Math.round(h * s);
+  c.getContext('2d').drawImage(src, 0, 0, c.width, c.height);
+  return new Promise(r => c.toBlob(r, 'image/jpeg', q));
+}
+// 從影片抓一張有畫面的縮圖（避開全黑的開頭；部分 Android 要先播一下才解得出畫面）
+async function grabFrame(src) {
+  const v = document.createElement('video');
+  v.muted = true; v.playsInline = true; v.preload = 'auto'; v.src = src;
+  const wait = (ev, ms) => new Promise((ok, no) => {
+    const t = setTimeout(() => no(new Error('timeout')), ms);
+    v.addEventListener(ev, () => { clearTimeout(t); ok(); }, { once: true });
+    v.addEventListener('error', () => { clearTimeout(t); no(new Error('decode')); }, { once: true });
+  });
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  try {
+    await wait('loadeddata', 20000);
+    if (!v.videoWidth) { await v.play().catch(() => {}); await sleep(400); v.pause(); }
+    const w = v.videoWidth, h = v.videoHeight; if (!w || !h) throw new Error('nosize');
+    const dur = isFinite(v.duration) ? v.duration : 0;
+    const s = Math.min(1, 480 / Math.max(w, h)), c = document.createElement('canvas');
+    c.width = Math.round(w * s); c.height = Math.round(h * s); const g = c.getContext('2d', { willReadFrequently: true });
+    const times = [Math.min(0.8, dur * 0.1), Math.min(2.5, dur * 0.3), dur * 0.5].filter((t, i, a) => t >= 0 && a.indexOf(t) === i);
+    for (const t of times) {
+      if (Math.abs(v.currentTime - t) > 0.05) { v.currentTime = t; await wait('seeked', 15000).catch(() => {}); }
+      await sleep(250);
+      g.drawImage(v, 0, 0, c.width, c.height);
+      const d = g.getImageData(0, 0, c.width, c.height).data; let sum = 0, n = 0;
+      for (let i = 0; i < d.length; i += 4 * 97) { sum += d[i] + d[i + 1] + d[i + 2]; n++; }
+      if (sum / (n * 3) > 14) break;   // 不是一片黑就用這張
+    }
+    const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', .82));
+    return { blob, ph: tinyPh(c, c.width, c.height), sig: sigOf(c, w, h), w, h, duration: Math.round(dur) };
+  } finally { v.removeAttribute('src'); v.load(); }
+}
+async function videoPoster(file) {
+  const url = URL.createObjectURL(file);
+  try { const f = await grabFrame(url); return { poster: f.blob, ph: f.ph, sig: f.sig, w: f.w, h: f.h, duration: f.duration }; }
+  catch {
+    const c = document.createElement('canvas'); c.width = c.height = 480; const g = c.getContext('2d');
+    g.fillStyle = '#DCE8F0'; g.fillRect(0, 0, 480, 480);
+    g.fillStyle = 'rgba(255,255,255,.9)'; g.beginPath(); g.arc(240, 240, 70, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#2E7DA8'; g.beginPath(); g.moveTo(218, 200); g.lineTo(218, 280); g.lineTo(285, 240); g.closePath(); g.fill();
+    return { poster: await new Promise(r => c.toBlob(r, 'image/jpeg', .85)), ph: '', w: 0, h: 0, duration: 0, noFrame: true };
+  } finally { URL.revokeObjectURL(url); }
+}
+async function prepareFile(file) {
+  if (file.type.startsWith('video/')) {
+    if (file.size > MAX_VIDEO) throw new Error('影片超過 200MB，請先剪短');
+    const { poster, ph, sig, w, h, duration, noFrame } = await videoPoster(file);
+    const ext = (file.name.split('.').pop() || 'mp4').toLowerCase().replace(/[^a-z0-9]/g, '') || 'mp4';
+    const vid = new Blob([file], { type: file.type || 'video/mp4' });
+    return { kind: 'video', origName: file.name, takenAt: file.lastModified || Date.now(), w, h, duration, ph, sig, noFrame, parts: [['thumb', poster, 'thumb.jpg'], ['full', vid, 'video.' + ext]] };
+  }
+  const takenAt = (await exifDate(file)) || file.lastModified || Date.now();
+  const img = await loadImg(file);
+  const w = img.naturalWidth, h = img.naturalHeight;
+  // 原檔以完整解析度重新存檔（移除 GPS），另做顯示用與縮圖
+  const thumb = await resize(img, w, h, 360, .75), disp = await resize(img, w, h, 1600, .85), full = await resize(img, w, h, 6000, .92), ph = tinyPh(img, w, h), sig = sigOf(img, w, h);
+  URL.revokeObjectURL(img.src);
+  return { kind: 'image', origName: file.name.replace(/\.[^.]+$/, '') + '.jpg', takenAt, w, h, ph, sig, parts: [['thumb', thumb, 'thumb.jpg'], ['disp', disp, 'disp.jpg'], ['full', full, 'full.jpg']] };
+}
+
+/* =====================================================================
+   ② 資料後端：Google Apps Script ＋ 你的 Google 雲端硬碟（零費用）
+   ===================================================================== */
+const TOKEN_KEY = 'albumIdToken', SESSION_KEY = 'albumSession';
+const jwtPayload = t => { try { return JSON.parse(decodeURIComponent(escape(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))))); } catch { return {}; } };
+const jwtExp = t => (jwtPayload(t).exp || 0) * 1000;
+async function waitGIS() {
+  for (let i = 0; i < 150 && !window.google?.accounts?.id; i++) await new Promise(r => setTimeout(r, 100));
+  if (!window.google?.accounts?.id) throw new Error('Google 登入元件載入失敗，請檢查網路後重新整理');
+}
+function b64ToBlob(b64, type = '') { const bin = atob(b64), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return new Blob([u], { type }); }
+const toB64 = blob => new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result).split(',')[1] || ''); fr.onerror = rej; fr.readAsDataURL(blob); });
+const mkErr = code => { const e = new Error(code); e.code = code; return e; };
+
+function makeGAS(url, clientId) {
+  let token = LS.get(TOKEN_KEY, ''), session = LS.get(SESSION_KEY, ''), waiters = [];
+  const setSession = v => { session = v || ''; LS.set(SESSION_KEY, session); };
+  const sessEmail = () => { try { return JSON.parse(atob(session.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).e || ''; } catch { return ''; } };
+  const cache = new Map(), inflight = new Map(), pending = new Map();
+  let timer = null;
+  const valid = () => token && jwtExp(token) - Date.now() > 90e3;
+  const gotToken = t => { token = t; LS.set(TOKEN_KEY, t); const w = waiters; waiters = []; w.forEach(f => f(t)); };
+
+  async function ensureToken() {
+    if (valid()) return token;
+    await waitGIS();
+    const t = await new Promise(res => { waiters.push(res); try { google.accounts.id.prompt(); } catch {} setTimeout(() => res(null), 12000); });
+    if (!t) { setTimeout(() => { if (!$('#gbtn')) renderLogin('登入已過期，請再按一次登入'); }, 0); throw mkErr('TOKEN_EXPIRED'); }
+    return t;
+  }
+  async function call(action, args = {}, retry = true) {
+    const useSession = !!session;
+    const auth = useSession ? { session } : { token: await ensureToken() };
+    let r;
+    try { r = await fetch(url, { method: 'POST', body: JSON.stringify({ action, ...auth, ...args }) }); }
+    catch { throw mkErr('NETWORK'); }
+    const j = await r.json().catch(() => ({ ok: false, error: 'BAD_RESPONSE' }));
+    if (j.session) setSession(j.session);
+    if (!j.ok) {
+      if (j.error === 'SESSION_INVALID' && useSession) { setSession(''); return call(action, args, retry); }
+      if (j.error === 'TOKEN_INVALID' && retry) { token = ''; LS.set(TOKEN_KEY, ''); return call(action, args, false); }
+      const e = mkErr(j.error); e.email = j.email; throw e;
+    }
+    return j.data;
+  }
+
+  // 縮圖一次批次取 24 張，減少往返
+  function flush() {
+    timer = null;
+    const groups = {};
+    for (const [k, e] of pending) (groups[e.which] ||= []).push([k, e]);
+    pending.clear();
+    for (const which in groups) {
+      const list = groups[which];
+      const per = which === 'disp' ? 4 : 12;   // 分小批同時送，第一批更快出現
+      for (let i = 0; i < list.length; i += per) {
+        const part = list.slice(i, i + per);
+        call('media', { ids: part.map(([k]) => k.split('|')[1].split('@')[0]), which }).then(res => {
+          for (const [k, e] of part) {
+            const b = res[k.split('|')[1].split('@')[0]];
+            if (b) { const blob = b64ToBlob(b, 'image/jpeg'), u = URL.createObjectURL(blob); cache.set(k, u); diskPut(k, blob); e.res(u); } else e.rej(mkErr('NO_MEDIA'));
+          }
+        }).catch(err => part.forEach(([, e]) => e.rej(err)));
+      }
+    }
+  }
+  // 看過的縮圖存在這台手機，下次打開馬上出現（登出會清掉）
+  const MC = 'album-media-v1', mkey = k => './__media/' + k.replace('|', '/');
+  const diskGet = async k => { try { const c = await caches.open(MC), r = await c.match(mkey(k)); return r ? await r.blob() : null; } catch { return null; } };
+  const diskPut = (k, blob) => { try { caches.open(MC).then(c => c.put(mkey(k), new Response(blob, { headers: { 'Content-Type': 'image/jpeg' } }))).catch(() => {}); } catch {} };
+  function media(p, which) {
+    const k = which + '|' + p.id + (which === 'thumb' && p.tv ? '@' + p.tv : '');
+    if (cache.has(k)) return Promise.resolve(cache.get(k));
+    if (inflight.has(k)) return inflight.get(k);
+    const pr = diskGet(k).then(b => {
+      if (b) { const u = URL.createObjectURL(b); cache.set(k, u); return u; }
+      return new Promise((res, rej) => { pending.set(k, { which, res, rej }); if (!timer) timer = setTimeout(flush, 40); });
+    }).finally(() => inflight.delete(k));
+    inflight.set(k, pr); return pr;
+  }
+  function seed(id, which, blob, tv) { const k = which + '|' + id + (which === 'thumb' && tv ? '@' + tv : ''); cache.set(k, URL.createObjectURL(blob)); diskPut(k, blob); }
+  // 原檔（影片、下載原圖）分段取回
+  async function pull(action, args, p, onProg) {
+    const CH = 6 * 1024 * 1024, parts = [];
+    let start = 0, total = Infinity;
+    while (start < total) {
+      const r = await call(action, { ...args, id: p.id, start, len: CH });
+      const blob = b64ToBlob(r.b64); if (!blob.size) break;
+      parts.push(blob); start += blob.size; total = r.total || start;
+      onProg?.(Math.min(1, start / total));
+    }
+    return URL.createObjectURL(new Blob(parts, { type: p.mime || (p.kind === 'video' ? 'video/mp4' : 'image/jpeg') }));
+  }
+  async function original(p, onProg) {
+    const k = 'full|' + p.id;
+    if (cache.has(k)) return cache.get(k);
+    const u = await pull('chunk', {}, p, onProg);
+    cache.set(k, u); return u;
+  }
+  // 分享連結裡的照片：另外取、不存進這台手機（對方可能不是家人）
+  const shMem = new Map(); let shPend = [], shTimer = null;
+  function shFlush() {
+    shTimer = null;
+    const groups = {}; shPend.forEach(e => (groups[e.code + '|' + e.which] ||= []).push(e)); shPend = [];
+    for (const g in groups) {
+      const [code, which] = g.split('|'), list = groups[g], per = which === 'disp' ? 4 : 12;
+      for (let i = 0; i < list.length; i += per) {
+        const part = list.slice(i, i + per);
+        call('shareMedia', { code, which, ids: part.map(e => e.id) }).then(res => part.forEach(e => {
+          const b = res[e.id]; b ? e.res(URL.createObjectURL(b64ToBlob(b, 'image/jpeg'))) : e.rej(mkErr('NO_MEDIA'));
+        })).catch(err => part.forEach(e => e.rej(err)));
+      }
+    }
+  }
+  function shareURL(code, p, which, onProg) {
+    const k = code + '|' + which + '|' + p.id;
+    if (shMem.has(k)) return shMem.get(k);
+    const pr = which === 'full' ? pull('shareChunk', { code }, p, onProg)
+      : new Promise((res, rej) => { shPend.push({ code, which, id: p.id, res, rej }); if (!shTimer) shTimer = setTimeout(shFlush, 40); });
+    shMem.set(k, pr); pr.catch(() => shMem.delete(k));
+    return pr;
+  }
+
+  return {
+    demo: false,
+    init(cb) {
+      if (session) cb(true);   // 有保持登入的憑證：不用等 Google 登入元件，直接進相簿
+      waitGIS().then(() => {
+        google.accounts.id.initialize({
+          client_id: clientId, auto_select: true, cancel_on_tap_outside: false, use_fedcm_for_prompt: true,
+          callback: r => { gotToken(r.credential); if (!S.me) cb(true); },
+        });
+        if (session) return;   // 已經用保持登入的憑證進來了
+        if (valid()) cb(true); else { cb(false); google.accounts.id.prompt(); }
+      }).catch(e => { app.innerHTML = `<div class="center"><div class="card">${esc(e.message)}</div></div>`; });
+    },
+    renderButton(el) { waitGIS().then(() => google.accounts.id.renderButton(el, { theme: 'filled_blue', size: 'large', shape: 'pill', text: 'signin_with', locale: 'zh-TW', width: 280 })).catch(() => {}); },
+    async signIn() { await waitGIS(); google.accounts.id.prompt(); },
+    async signOut() { token = ''; LS.set(TOKEN_KEY, ''); setSession(''); cache.forEach(u => URL.revokeObjectURL(u)); cache.clear(); try { await caches.delete(MC); } catch {} try { google.accounts.id.disableAutoSelect(); } catch {} },
+    currentEmail() { return jwtPayload(token).email || sessEmail(); },
+    bootstrap() { return call('bootstrap'); },
+    setConfig(c) { return call('setConfig', { cfg: c }); },
+    saveMember(m) { return call('saveMember', { member: m }); },
+    removeMember(email) { return call('removeMember', { email }); },
+    async saveAlbum(a) { return (await call('saveAlbum', { album: a })).id; },
+    deleteAlbum(id) { return call('deleteAlbum', { id }); },
+    async upload(albumId, item, meta, onProg) {
+      const parts = Object.fromEntries(item.parts.map(([k, b]) => [k, b])), full = parts.full;
+      const mime = full.type || 'application/octet-stream';
+      const { uploadId } = await call('uploadStart', {
+        albumId, meta: { ...meta, mime }, thumb: await toB64(parts.thumb), disp: parts.disp ? await toB64(parts.disp) : '',
+        orig: { name: item.origName || 'file', mime, size: full.size } });
+      const CH = 6 * 1024 * 1024;   // 必須是 256KB 的倍數
+      for (let s = 0; s < full.size; s += CH) {
+        const b64 = await toB64(full.slice(s, s + CH));
+        try { await call('uploadChunk', { uploadId, start: s, b64 }); }
+        catch (e) { if (e.code !== 'NETWORK') throw e; await new Promise(r => setTimeout(r, 2000)); await call('uploadChunk', { uploadId, start: s, b64 }); }
+        onProg?.(Math.min(1, (s + CH) / full.size));
+      }
+      const rec = await call('uploadFinish', { uploadId });
+      seed(rec.id, 'thumb', parts.thumb); if (parts.disp) seed(rec.id, 'disp', parts.disp);
+      return { ...rec };
+    },
+    getMediaURL(p, which, onProg) { if (p._url) return Promise.resolve(p._url[which] || p._url.disp || p._url.thumb); return which === 'full' ? original(p, onProg) : media(p, which); },
+    updatePhoto(p, patch) { return call('updatePhoto', { id: p.id, patch }); },
+    async setThumb(p, blob, ph) { const r = await call('setThumb', { id: p.id, b64: await toB64(blob), ph }); seed(p.id, 'thumb', blob, r.tv); return r; },
+    fixVideoThumbs() { return call('fixVideoThumbs'); },
+    bulkState(ids, state) { return call('bulkState', { ids, state }); },
+    movePhotos(ids, to) { return call('movePhotos', { ids, to }); },
+    sigs() { return call('sigs'); },
+    notifyNew(ids) { return call('notifyNew', { ids }); },
+    joinInvite(code) { return call('joinInvite', { code }); },
+    createInvite(invite) { return call('createInvite', { invite }); },
+    listInvites() { return call('listInvites'); },
+    revokeInvite(id) { return call('revokeInvite', { id }); },
+    createShare(ids) { return call('createShare', { ids }); },
+    listShares() { return call('listShares'); },
+    revokeShare(id) { return call('revokeShare', { id }); },
+    viewShare(code) { return call('viewShare', { code }); },
+    async oldThumb(album, id) { const r = await call('oldThumb', { album, id }); return { ...r, url: URL.createObjectURL(b64ToBlob(r.b64, 'image/jpeg')) }; },
+    shareURL,
+    setMyNotify(on) { return call('setMyNotify', { on }); },
+    testMail() { return call('testMail'); },
+    saveSigs(items) { return call('saveSigs', { items }); },
+    toggleLike(p, email, on) { return call('like', { id: p.id, on }); },
+    listComments(p) { return call('comments', { id: p.id }); },
+    addComment(p, c) { return call('addComment', { id: p.id, text: c.text }); },
+    deleteComment(p, c) { return call('delComment', { cid: c.id }); },
+    deleteForever(p) { return call('deleteForever', { id: p.id }); },
+    log(e) { return call('log', { text: e.text }).catch(() => {}); },
+    listActivity() { return call('activity'); },
+  };
+}
+
+/* =====================================================================
+   ③ 示範模式（沒填 API_URL 時使用，資料只在這個頁面裡，關掉就消失）
+   ===================================================================== */
+function makeDemo() {
+  const now = Date.now(), day = 864e5;
+  const bd = new Date(now - 130 * day);
+  const birthday = `${bd.getFullYear()}-${pad(bd.getMonth()+1)}-${pad(bd.getDate())}`;
+  const members = [
+    { email: 'dad@demo', name: '爸爸', relation: '', role: 'admin', canDownload: true, owner: true, lastSeen: now },
+    { email: 'mom@demo', name: '媽媽', relation: '', role: 'admin', canDownload: true, owner: true, lastSeen: now - 2 * 3600e3 },
+    { email: 'grandpa@demo', name: '爺爺', relation: '爺爺', role: 'family', canDownload: true, lastSeen: now - 1 * day },
+    { email: 'ama@demo', name: '阿嬤', relation: '阿嬤', role: 'viewer', canDownload: false, lastSeen: now - 5 * 3600e3 },
+    { email: 'aunt@demo', name: '小阿姨', relation: '阿姨', role: 'viewer', canDownload: true, lastSeen: 0 },
+  ];
+  const albums = [
+    { id: 'a1', name: '日常生活', visibility: 'everyone', allowed: [], allowUpload: true, createdAt: now - 120 * day },
+    { id: 'a2', name: '滿月＆收涎', visibility: 'everyone', allowed: [], allowUpload: false, createdAt: now - 100 * day },
+    { id: 'a3', name: '洗澡＆私密照', visibility: 'parents', allowed: [], allowUpload: false, createdAt: now - 90 * day },
+    { id: 'a4', name: '家族聚會', visibility: 'family', allowed: ['ama@demo'], allowUpload: true, createdAt: now - 80 * day },
+  ];
+  const art = (_e, text, hue) => 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="hsl(${hue},45%,90%)"/><stop offset="1" stop-color="hsl(${(hue+40)%360},40%,80%)"/></linearGradient></defs><rect width="400" height="400" fill="url(#g)"/><circle cx="300" cy="120" r="70" fill="#fff" opacity=".45"/><circle cx="130" cy="260" r="110" fill="#fff" opacity=".3"/><text x="200" y="345" font-size="30" text-anchor="middle" fill="#3d5565" font-family="sans-serif">${text}</text></svg>`);
+  const seed = [
+    ['a2','','出生第一天',129,'','admin'],['a2','','滿月',100,'滿月','admin'],['a2','','收涎',96,'收涎','admin'],
+    ['a1','','第一次笑',85,'第一次笑','admin'],['a1','','玩玩具',70,'','family'],['a1','','喝奶奶',60,'',''],
+    ['a3','','洗澎澎',55,'',''],['a3','','泡泡浴',30,'',''],['a4','','家族聚餐',45,'','family'],
+    ['a4','','阿嬤抱抱',44,'',''],['a1','','第一次翻身',25,'第一次翻身',''],['a1','','去公園',12,'第一次出遊',''],
+    ['a1','','睡午覺',4,'',''],['a1','','穿小雞裝',1,'',''],['a4','','全家福',2,'',''],['a1','','滿月散步',30,'',''],
+  ];
+  const photos = seed.map(([albumId, e, t, d, ms, who], i) => {
+    const url = art(e, t, (i * 37) % 360);
+    return { id: 'p' + i, albumId, kind: i === 4 ? 'video' : 'image', takenAt: now - d * day - i * 1e6, createdAt: now - d * day + 3600e3,
+      uploader: who === 'family' ? 'grandpa@demo' : (i % 2 ? 'mom@demo' : 'dad@demo'), caption: t, milestone: ms,
+      state: i === 13 ? 'hidden' : 'normal', likes: i % 3 ? ['ama@demo'] : ['ama@demo', 'grandpa@demo'], commentCount: i === 1 ? 1 : 0,
+      bytes: 650000, files: { thumb: 'thumb.jpg', full: 'full.jpg' }, _url: { thumb: url, full: url }, _demoVideo: i === 4 };
+  });
+  photos[14].createdAt = now - 600e3;
+  { const t = new Date(); photos[15].takenAt = new Date(t.getFullYear(), t.getMonth() - 1, t.getDate(), 10).getTime(); } // 讓最新一張顯示「新」
+  const comments = { 'a2/p1': [{ id: 'c1', author: 'ama@demo', name: '阿嬤', text: '好可愛喔！阿嬤好想你～', at: now - 99 * day }] };
+  const activity = [
+    { at: now - 600e3, actor: 'dad@demo', actorName: '爸爸', text: '上傳了 1 張到「家族聚會」' },
+    { at: now - 1 * day, actor: 'grandpa@demo', actorName: '爺爺', text: '上傳了 1 張到「日常生活」' },
+    { at: now - 3 * day, actor: 'mom@demo', actorName: '媽媽', text: '把「小阿姨」加入相簿（只能看）' },
+  ];
+  let current = 'dad@demo', cfg = { babyName: '果果', fullName: '黃小果', gender: 'girl', birthday, showPresence: true, setupDone: true };
+  const clone = o => JSON.parse(JSON.stringify(o));
+  return {
+    demo: true, members,
+    init(cb) { cb(true); },
+    async signIn() {}, async signOut() { toast('示範模式不需要登出'); },
+    currentEmail() { return current; },
+    renderButton() {},
+    async bootstrap() {
+      const me = await this.getMe(); if (!me) { const e = new Error('NOT_INVITED'); e.code = 'NOT_INVITED'; e.email = current; throw e; }
+      const albums = await this.listAlbums(me);
+      const ps = (await Promise.all(albums.map(a => this.listPhotos(a, me)))).flat();
+      return { me, cfg: { ...cfg }, albums, photos: ps, members: clone(members) };
+    },
+    setUser(e) { current = e; },
+    async getMe() { const m = members.find(x => x.email === current); return m ? { ...m } : null; },
+    async getConfig() { return { ...cfg }; },
+    async setConfig(c) { cfg = { ...cfg, ...c }; },
+    async listMembers() { return clone(members); },
+    async saveMember(m) { const i = members.findIndex(x => x.email === m.email); if (i >= 0) members[i] = { ...members[i], ...m }; else members.push({ ...m }); },
+    async removeMember(e) { const i = members.findIndex(x => x.email === e); if (i >= 0) members.splice(i, 1); },
+    async listAlbums(me) { return clone(albums.filter(a => canSee(a, me))); },
+    async saveAlbum(a) { if (a.id) { Object.assign(albums.find(x => x.id === a.id), a); return a.id; } const id = 'a' + Date.now(); albums.push({ ...a, id }); return id; },
+    async deleteAlbum(id) { albums.splice(albums.findIndex(a => a.id === id), 1); },
+    async listPhotos(a, me) { return photos.filter(p => p.albumId === a.id && (me.role === 'admin' || p.state === 'normal')).map(p => ({ ...p })); },
+    async upload(albumId, item, meta, onProg) {
+      onProg?.(1);
+      const _url = {}, files = {}; let bytes = 0;
+      for (const [k, b, n] of item.parts) { _url[k] = URL.createObjectURL(b); files[k] = n; bytes += b.size; }
+      const p = { id: 'p' + Date.now() + Math.random().toString(36).slice(2, 6), albumId, ...meta, files, bytes, state: 'normal', likes: [], commentCount: 0, _url };
+      photos.push(p); return { ...p };
+    },
+    async getMediaURL(p, which) { const src = photos.find(x => x.id === p.id); if (!src) throw new Error('gone'); return src._url[which] || src._url.disp || src._url.full || src._url.thumb; },
+    async updatePhoto(p, patch) { Object.assign(photos.find(x => x.id === p.id), patch); },
+    async fixVideoThumbs() { return { fixed: 0, left: 0, photos: [] }; },
+    async sigs() { return {}; },
+    async notifyNew() { return { sent: 2 }; },
+    _inv: [],
+    async joinInvite() { return { joined: true }; },
+    async createInvite(x) { const inv = { id: 'demo' + Date.now().toString(36), role: x.role, canDownload: x.canDownload, name: x.name, relation: x.relation, maxUses: x.multi ? 0 : 1, expiresAt: x.days ? Date.now() + x.days * 864e5 : 0, uses: 0, joined: [], createdAt: Date.now() }; this._inv.unshift(inv); return inv; },
+    async listInvites() { return this._inv.filter(i => !i.revoked); },
+    async revokeInvite(id) { const i = this._inv.find(x => x.id === id); if (i) i.revoked = true; return { ok: true }; },
+    _sh: [],
+    async createShare(ids) { const s = { id: 'demo' + Date.now().toString(36), ids, createdBy: current, createdAt: Date.now(), expiresAt: Date.now() + 7 * day }; this._sh.unshift(s); return s; },
+    async listShares() { const me = members.find(m => m.email === current); return this._sh.filter(s => !s.revoked && (me.role === 'admin' || s.createdBy === current)); },
+    async revokeShare(id) { const s = this._sh.find(x => x.id === id); if (s) s.revoked = true; return { ok: true }; },
+    async viewShare(code) { const s = this._sh.find(x => x.id === code && !x.revoked); if (!s) throw mkErr('SHARE_INVALID');
+      return { expiresAt: s.expiresAt, from: members.find(m => m.email === s.createdBy)?.name || '', baby: cfg.babyName, member: true,
+        items: photos.filter(p => s.ids.includes(p.id) && p.state === 'normal').map(p => ({ id: p.id, kind: p._demoVideo ? 'image' : p.kind, takenAt: p.takenAt, caption: p.caption, milestone: p.milestone })) }; },
+    async oldThumb(album, id) { const p = photos.find(x => x.id === id && x.albumId === album && x.state === 'normal'), a = albums.find(x => x.id === album);
+      if (!p || a?.visibility !== 'everyone') throw mkErr('NOT_FOUND'); return { url: p._url.thumb, kind: p.kind, takenAt: p.takenAt, baby: cfg.babyName }; },
+    async shareURL(code, p, which) { const src = photos.find(x => x.id === p.id); return src._url[which] || src._url.disp || src._url.full || src._url.thumb; },
+    async setMyNotify(on) { const m = members.find(x => x.email === current); m.notify = on; return { notify: on }; },
+    async testMail() { return { quota: 99 }; },
+    async saveSigs() { return { saved: 0 }; },
+    async movePhotos(ids, to) { const out = []; photos.forEach(p => { if (ids.includes(p.id) && p.albumId !== to) { p.albumId = to; out.push(p.id); } }); return { ids: out }; },
+    async bulkState(ids, state) { const me = members.find(m => m.email === current), out = [];
+      photos.forEach(p => { if (ids.includes(p.id) && (me.role === 'admin' || p.uploader === current)) { p.state = state; out.push(p.id); } }); return { ids: out }; },
+    async setThumb(p, blob, ph) { const x = photos.find(y => y.id === p.id); x._url.thumb = URL.createObjectURL(blob); x.ph = ph; x.thumbOk = true; return { ...x }; },
+    async toggleLike(p, email, on) { const x = photos.find(y => y.id === p.id); x.likes = on ? [...new Set([...x.likes, email])] : x.likes.filter(e => e !== email); },
+    async listComments(p) { return clone(comments[p.albumId + '/' + p.id] || []); },
+    async addComment(p, c) { const k = p.albumId + '/' + p.id, n = { id: 'c' + Date.now(), ...c }; (comments[k] ||= []).push(n); photos.find(x => x.id === p.id).commentCount++; return n; },
+    async deleteComment(p, c) { const k = p.albumId + '/' + p.id; comments[k] = (comments[k] || []).filter(x => x.id !== c.id); photos.find(x => x.id === p.id).commentCount--; },
+    async deleteForever(p) { photos.splice(photos.findIndex(x => x.id === p.id), 1); },
+    async log(e) { activity.unshift(e); },
+    async listActivity() { return clone(activity); },
+  };
+}
+
+/* =====================================================================
+   ④ 畫面
+   ===================================================================== */
+const ICONS = {
+  calendar: '<rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M8 3v4M16 3v4M3.5 10h17"/>',
+  folder: '<path d="M3.5 7.5a2 2 0 0 1 2-2H10l2 2.5h6.5a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  star: '<path d="M12 3.8l2.5 5.1 5.6.8-4.05 3.95.95 5.6L12 16.6l-5 2.65.95-5.6L3.9 9.7l5.6-.8z"/>',
+  user: '<circle cx="12" cy="8.5" r="3.7"/><path d="M4.5 20c.8-4 3.7-6 7.5-6s6.7 2 7.5 6"/>',
+  sliders: '<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>',
+  heart: '<path d="M12 19.8s-7.3-4.5-7.3-10A4.2 4.2 0 0 1 12 7.2a4.2 4.2 0 0 1 7.3 2.6c0 5.5-7.3 10-7.3 10z"/>',
+  share: '<path d="M12 15V4M8 7.5l4-4 4 4"/><path d="M5 12v6.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V12"/>',
+  download: '<path d="M12 4v11M8 11.5l4 4 4-4M5 20h14"/>',
+  edit: '<path d="M4 20l1-4L16.5 4.5a2.1 2.1 0 0 1 3 3L8 19z"/><path d="M14.5 6.5l3 3"/>',
+  trash: '<path d="M5 7h14M10 7V4.5h4V7M7 7l.8 12.5h8.4L17 7M10.5 11v5M13.5 11v5"/>',
+  eyeOff: '<path d="M3 12s3.5-6 9-6c1.6 0 3 .5 4.3 1.2M21 12s-3.5 6-9 6c-1.6 0-3-.5-4.3-1.2M4 4l16 16"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
+  eye: '<path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"/><circle cx="12" cy="12" r="2.8"/>',
+  image: '<rect x="3.5" y="4.5" width="17" height="15" rx="3"/><circle cx="9" cy="10" r="1.6"/><path d="M4 17l5-4.5 3.5 3L16 12l4 4"/>',
+  copy: '<rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>',
+  close: '<path d="M6 6l12 12M18 6L6 18"/>',
+  back: '<path d="M14.5 5.5L8 12l6.5 6.5"/>',
+  next: '<path d="M9.5 5.5L16 12l-6.5 6.5"/>',
+  play: '<path d="M8 5.5v13l11-6.5z"/>',
+  lock: '<rect x="5" y="10.5" width="14" height="9.5" rx="2.5"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/>',
+  users: '<circle cx="9" cy="9" r="3.2"/><path d="M3 19c.6-3.3 3-5 6-5s5.4 1.7 6 5"/><path d="M16 6.2a3 3 0 0 1 0 5.6M18 14.3c1.7.7 2.8 2.2 3.2 4.7"/>',
+  globe: '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.5 2.4 3.6 5.2 3.6 8.5s-1.1 6.1-3.6 8.5c-2.5-2.4-3.6-5.2-3.6-8.5S9.5 5.9 12 3.5z"/>',
+  home: '<path d="M4 11l8-6.5 8 6.5v8a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1z"/>',
+  refresh: '<path d="M19.5 12a7.5 7.5 0 1 1-2.3-5.4M19.5 4.5v4h-4"/>',
+  check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  alert: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v5.5M12 16.3v.1"/>',
+  bell: '<path d="M6 17v-6a6 6 0 0 1 12 0v6l1.5 2h-15zM10 21h4"/>',
+  help: '<circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.6a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1.1.9-1.1 1.7M12 16.6v.1"/>',
+  clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+  log: '<path d="M7 4.5h10A1.5 1.5 0 0 1 18.5 6v13a1.5 1.5 0 0 1-1.5 1.5H7A1.5 1.5 0 0 1 5.5 19V6A1.5 1.5 0 0 1 7 4.5zM9 9h6M9 13h6M9 16.5h3.5"/>',
+  link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+  shield: '<path d="M12 3.5l7 2.8v5.4c0 4.2-2.9 7.3-7 8.8-4.1-1.5-7-4.6-7-8.8V6.3z"/><path d="M9 12l2.2 2.2L15.2 10"/>',
+  baby: '<path d="M5 20v-7.5a7 7 0 0 1 14 0V20"/><circle cx="12" cy="11" r="2.4"/><path d="M3.5 20h17"/>',
+  type: '<path d="M5 18l5-12 5 12M6.8 14h6.4M17 9h3M18.5 9v9"/>',
+  link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+  mail: '<rect x="3.5" y="5.5" width="17" height="13" rx="2.5"/><path d="M4 7l8 6 8-6"/>',
+  upload: '<path d="M12 16V5M8 8.5l4-4 4 4M5 14v4.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V14"/>',
+  cover: '<rect x="3.5" y="4.5" width="17" height="15" rx="3"/><path d="M8 10.5l2.5 2.5 3-4 3 4.5"/>',
+  clockBack: '<path d="M4 12a8 8 0 1 0 2.4-5.7M4 4.5v4h4M12 8v4l3 2"/>',
+};
+const ic = (n, s = 20, cls = '') => `<svg class="ic ${cls}" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[n] || ''}</svg>`;
+const visIc = (v, s = 14) => ic(VIS[v].icon, s);
+const visShort = v => ({ everyone: '所有家人', family: '核心家人', parents: '只有爸媽' })[v];
+
+const S = { hook: {}, be: null, me: null, cfg: {}, albums: [], photos: [], members: [], tab: 'timeline', albumId: null, prevSeen: 0, lb: null, adminView: null, dl: false, lastTap: 0 };
+const app = $('#app');
+const isAdmin = () => S.me?.role === 'admin';
+const babyName = () => S.cfg.babyName || '寶寶';
+const albumById = id => S.albums.find(a => a.id === id);
+const findPhoto = (aid, pid) => S.photos.find(p => p.albumId === aid && p.id === pid);
+const memberName = email => { const m = S.members.find(x => x.email === email); return m ? (m.name || m.relation || email) : (email === S.me?.email ? S.me.name : email?.split('@')[0] || '家人'); };
+const uploadableAlbums = () => S.albums.filter(a => canUploadTo(a, S.me));
+const logAct = text => S.be.log({ at: Date.now(), actor: S.me.email, actorName: S.me.name || S.me.email, text });
+const avatar = (email, label) => `<div class="av" style="background:${avColor(email)}">${esc(String(label || '?')[0])}</div>`;
+const presenceOn = () => S.cfg.showPresence !== false;
+
+if (LS.get('bigText', false)) document.documentElement.classList.add('big');
+
+// 網址上的邀請碼／通知開關先記下來（登入過程可能會重新整理頁面）
+(function readUrlParams() {
+  const q = new URLSearchParams(location.search), inv = q.get('invite'), nt = q.get('notify'), sh = q.get('s');
+  if (inv && /^[a-z0-9]{8,40}$/i.test(inv)) LS.set('pendingInvite', inv);
+  if (nt === 'off' || nt === 'on') LS.set('pendingNotify', nt);
+  if (sh && /^[a-z0-9]{8,40}$/i.test(sh)) LS.set('pendingShare', sh);
+  if (inv || nt || sh) { q.delete('invite'); q.delete('notify'); q.delete('s'); try { history.replaceState(null, '', location.pathname + (q.toString() ? '?' + q : '')); } catch {} }
+})();
+async function boot() {
+  // LINE 內建瀏覽器無法用 Google 登入 → 自動改用手機的外部瀏覽器開啟
+  const ua = navigator.userAgent;
+  if (/ Line\//i.test(ua) && !location.search.includes('openExternalBrowser')) {
+    location.replace(location.pathname + (location.search ? location.search + '&' : '?') + 'openExternalBrowser=1' + location.hash); return;
+  }
+  if (API_URL && /FBAN|FBAV|Instagram|MicroMessenger| Line\//i.test(ua)) return renderInApp();
+  S.be = API_URL ? makeGAS(API_URL, GOOGLE_CLIENT_ID) : makeDemo();
+  S.be.init(signed => signed ? loadAll() : renderLogin());
+  if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+
+async function loadAll(keepView) {
+  if (S.share) return;   // 正在看分享連結：按「進入相簿」才離開
+  const sc = LS.get('pendingShare', '');
+  if (sc && !keepView) return openShareView(sc);
+  if (!keepView) app.innerHTML = '<div class="center"><div class="spin"></div></div>';
+  try {
+    const d = await S.be.bootstrap();
+    if (d.ext) { try { new Function('return (' + d.ext + ')')()({ S, ACT, H: { esc, toast, closeModal, render, logAct } }); } catch (x) { console.error(x); } }
+    S.me = d.me; S.cfg = d.cfg || {}; S.albums = d.albums || []; S.photos = d.photos || []; S.members = d.members || [];
+    const key = 'lastSeen:' + S.me.email;
+    if (!keepView) { S.prevSeen = LS.get(key, Date.now() - 3 * 864e5); LS.set(key, Date.now()); }
+    if (S.albumId && !albumById(S.albumId)) S.albumId = null;
+    render();
+    if (!openDeepLink() && !keepView) maybeOnboard();
+    autoFixVideoThumbs();
+    const pn = LS.get('pendingNotify', '');
+    if (pn) { LS.set('pendingNotify', ''); S.be.setMyNotify(pn === 'on').then(() => { S.me.notify = pn === 'on'; toast(pn === 'on' ? '已打開 Email 通知' : '已關掉 Email 通知。之後想再收到，可以在「我的」重新打開', 5000); }).catch(() => {}); }
+  } catch (e) {
+    console.error(e);
+    S.me = null;
+    if (e.code === 'NOT_INVITED') {
+      const code = LS.get('pendingInvite', '');
+      if (code) {
+        app.innerHTML = '<div class="center"><div class="card login"><div class="spin"></div><p>正在加入相簿…</p></div></div>';
+        try { await S.be.joinInvite(code); LS.set('pendingInvite', ''); toast('加入成功，歡迎！'); return loadAll(); }
+        catch (e2) { LS.set('pendingInvite', ''); return renderNotInvited(e.email, { INVITE_EXPIRED: '這個邀請連結已經過期了', INVITE_USED_UP: '這個邀請連結已經有人用過了', INVITE_INVALID: '這個邀請連結已經失效' }[e2.code] || '加入失敗，請請爸媽重新傳一個邀請連結'); }
+      }
+      if (new URLSearchParams(location.search).get('p')) return renderOldShare(e.email);
+      return renderNotInvited(e.email);
+    }
+    if (/TOKEN|NO_TOKEN/.test(e.code || '')) return renderLogin('請重新登入');
+    if (e.code === 'NETWORK' && navigator.onLine === false) return renderOffline();
+    if (e.code !== 'NOT_SETUP') return renderDown();   // 伺服器出錯、逾時、回應壞掉：一律顯示維修中
+    e.message = '後端還沒執行 setup，請參考設定教學第二步';
+    app.innerHTML = `<div class="center"><div class="card login"><div class="logo">${ic('alert', 36)}</div><h2>讀取資料失敗</h2><p class="hint">${esc(e.code || e.message)}</p><div class="row" style="justify-content:center"><button class="btn" data-act="reload">重新整理</button><button class="btn ghost" data-act="signOut">登出</button></div></div></div>`;
+  }
+}
+// 從分享連結進來：?p=相簿~照片，登入後直接打開那張
+function openDeepLink() {
+  if (S.dl) return false; S.dl = true;
+  const q = new URLSearchParams(location.search).get('p'); if (!q) return false;
+  try { history.replaceState(null, '', location.pathname); } catch {}
+  const [a, pid] = q.split('~'), ph = findPhoto(a, pid);
+  if (ph) openLB(a + '/' + pid, 'all'); else toast('找不到這張照片，或你沒有查看的權限');
+  return true;
+}
+
+function renderLogin(msg) {
+  app.innerHTML = `<div class="center"><div class="card login">
+    <div class="logo">${ic('baby', 38)}</div><h1>寶寶家庭相簿</h1>
+    ${msg ? `<p><b>${esc(msg)}</b></p>` : ''}
+    ${LS.get('pendingShare', '') ? '<p><b>有人分享了照片給你</b></p><p class="hint">用任何 Google 帳號登入就能看，不需要被邀請。</p>'
+      : LS.get('pendingInvite', '') ? '<p><b>你收到加入家庭相簿的邀請</b></p><p class="hint">用你的 Google 帳號登入，就會自動加入。</p>' : '<p class="hint">只有受邀的家人可以看到照片。<br>請用被邀請的 Google 帳號登入。</p>'}
+    <div id="gbtn" style="display:flex;justify-content:center;margin-top:1rem;min-height:44px"></div>
+  </div></div>`;
+  S.be.renderButton($('#gbtn'));
+}
+// 管理者專用的額外功能（由後端提供）掛在這裡
+const hook = (k, ...a) => { try { return S.hook[k] ? S.hook[k](...a) || '' : ''; } catch { return ''; } };
+function renderOffline() {
+  app.innerHTML = `<div class="center"><div class="card login"><div class="logo">${ic('globe', 36)}</div><h2>沒有網路連線</h2>
+    <p class="hint">請確認手機有連上網路，再按重新整理。</p>
+    <div class="row" style="justify-content:center;margin-top:.8rem"><button class="btn" data-act="reload">重新整理</button></div></div></div>`;
+}
+// 雲端那邊出問題（Google 服務逾時、額度用完等）時顯示
+function renderDown() {
+  app.innerHTML = `<div class="center"><div class="card login">
+    <div class="logo">${ic('alert', 36)}</div><h2>相簿維修中</h2>
+    <p>相簿出現技術性問題，正在維修中，暫時關閉。</p>
+    <p class="hint">造成不便，敬請見諒。請稍後再回來看看。</p>
+    <div class="row" style="justify-content:center;margin-top:.8rem"><button class="btn ghost" data-act="reload">重新整理</button></div>
+  </div></div>`;
+}
+function renderNotInvited(email, why) {
+  email = email || S.be.currentEmail();
+  app.innerHTML = `<div class="center"><div class="card login">
+    <div class="logo">${ic('lock', 36)}</div><h2>${why ? esc(why) : '還沒有被邀請'}</h2>
+    <p>你登入的帳號是<br><b>${esc(email)}</b></p>
+    <p class="hint">請把這個 Email 傳給寶寶的爸爸或媽媽，請他們把你加進相簿。加好之後重新整理，就能看到照片。</p>
+    <div class="row" style="justify-content:center;margin-top:.8rem">
+      <button class="btn" data-act="copy" data-text="${esc(email)}">複製我的 Email</button>
+      <button class="btn ghost" data-act="reload">重新整理</button>
+      <button class="btn ghost" data-act="signOut">換帳號</button>
+    </div></div></div>`;
+}
+const TEST_NOTE = '分享功能目前還在測試，會陸續更新。';
+// 沒被邀請的人點到舊版的分享連結（?p=相簿~照片）：「所有家人」相簿的照片給看小縮圖，其他只顯示說明
+async function renderOldShare(email) {
+  email = email || S.be.currentEmail();
+  app.innerHTML = '<div class="center"><div class="spin"></div></div>';
+  const [aid, pid] = (new URLSearchParams(location.search).get('p') || '').split('~');
+  let t = null; try { t = await S.be.oldThumb(aid, pid); } catch {}
+  app.innerHTML = `<div class="center"><div class="card login nocopy">
+    ${t ? `<img class="old-th" src="${t.url}" alt="" draggable="false"><p class="hint" style="margin:.4rem 0 0">${esc(t.baby)}的${t.kind === 'video' ? '影片' : '照片'} · ${fmtDate(t.takenAt)}</p>
+      <p style="margin-top:1rem">這是小張的預覽圖${t.kind === 'video' ? '，影片要用新的連結才能播放' : ''}。</p>
+      <p class="hint">想看大張的${t.kind === 'video' ? '影片' : '照片'}，請分享給你的人打開相簿，選好照片後按「分享」，再把新的連結傳給你。</p>`
+    : `<div class="logo">${ic('link', 36)}</div><h2>這是舊的分享連結</h2>
+      <p>舊的分享連結只有相簿裡的家人能打開。</p>
+      <p class="hint">請分享給你的人打開相簿，選好照片後按「分享」，再把新的連結傳給你。新的連結不需要被邀請，用 Google 帳號登入就能看。</p>`}
+    <p class="note" style="justify-content:center">${ic('alert', 16)}${TEST_NOTE}</p>
+    <p class="hint">你登入的帳號是 <b>${esc(email)}</b></p>
+    <div class="row" style="justify-content:center;margin-top:.8rem">
+      <button class="btn ghost" data-act="signOut">換帳號</button>
+    </div></div></div>`;
+  $('.old-th')?.addEventListener('contextmenu', e => e.preventDefault());
+}
+function renderInApp() {
+  app.innerHTML = `<div class="center"><div class="card login"><div class="logo">${ic('globe', 36)}</div><h2>請用瀏覽器打開</h2>
+    <p>Google 不允許在 LINE 或 Facebook 裡面登入。</p>
+    <p class="hint">請按右上角選單，選「用瀏覽器開啟」（Safari 或 Chrome），或複製網址貼到瀏覽器。</p>
+    <button class="btn" data-act="copy" data-text="${esc(location.href.split('?')[0])}">複製網址</button></div></div>`;
+}
+
+function render() {
+  const canUp = uploadableAlbums().length > 0;
+  const age = S.cfg.birthday ? babyAge(Date.now()) : '';
+  const hasNew = S.photos.some(p => p.state === 'normal' && p.createdAt > S.prevSeen && p.uploader !== S.me.email);
+  const demoSel = S.be.demo ? `<div style="padding:.6rem 1rem 0;max-width:980px;margin:auto"><select class="demo-sel" data-change="demoUser" aria-label="用誰的身分預覽">
+      ${S.be.members.map(m => `<option value="${m.email}" ${m.email === S.me.email ? 'selected' : ''}>以「${esc(m.name)}」預覽（${ROLES[m.role].short}）</option>`).join('')}
+    </select></div>` : '';
+  app.innerHTML = `
+  <header class="top">
+    ${babyAvatar(40)}<div><h1>${esc(babyName())}的相簿</h1>${age ? `<div class="age">今天 ${esc(age)}</div>` : ''}</div>
+    <span class="sp"></span>
+    ${S.be.demo ? '<span class="demo">示範模式</span>' : ''}
+    <button class="ibtn" data-act="feed" title="近況" aria-label="近況">${ic('bell', 22)}${hasNew ? '<i class="dot"></i>' : ''}</button>
+    <button class="ibtn" data-act="refresh" title="重新整理" aria-label="重新整理">${ic('refresh', 22)}</button>
+  </header>
+  ${demoSel}
+  <main class="${S.tab === 'me' ? 'narrow' : ''}">${view()}</main>
+  <nav class="bottom">
+    ${navBtn('timeline', 'calendar', '時間軸')}${navBtn('albums', 'folder', '相簿')}
+    ${canUp ? `<button class="fab" data-act="upload" aria-label="上傳">${ic('plus', 28)}</button>` : ''}
+    ${navBtn('milestones', 'star', '里程碑')}${navBtn('me', isAdmin() ? 'sliders' : 'user', isAdmin() ? '管理' : '我的')}
+  </nav>`;
+  observeMedia();
+  syncBrand();
+  if (S.tab === 'me' && isAdmin() && !S.adminView) fillInvites();
+  if (S.tab === 'me' && !S.adminView) fillShares();
+}
+const navBtn = (t, i, l) => `<button class="${S.tab === t ? 'on' : ''}" data-act="tab" data-tab="${t}">${ic(i, 24)}<span>${l}</span></button>`;
+function view() {
+  if (S.tab === 'albums') return viewAlbums();
+  if (S.tab === 'milestones') return viewMilestones();
+  if (S.tab === 'me') return isAdmin() ? viewAdmin() : viewMe();
+  return viewTimeline();
+}
+
+const normalPhotos = () => S.photos.filter(p => p.state === 'normal').sort((a, b) => b.takenAt - a.takenAt);
+const visiblePhotos = () => normalPhotos().filter(p => !S.albumId || p.albumId === S.albumId);
+function tile(p, list, extra = '') {
+  const isNew = p.createdAt > S.prevSeen && p.uploader !== S.me.email, likes = (p.likes || []).length;
+  const ph = p.ph ? ` style="background-image:url('${p.ph}')"` : '';
+  if (p._local) return `<button class="tile up" data-act="upInfo" data-key="${p.albumId}/${p.id}" aria-label="上傳中"${ph}><img src="${p._url.thumb}" class="ok" alt=""><span class="upbar"><i style="width:${Math.max(4, Math.round((p._prog || 0) * 100))}%"></i></span></button>`;
+  if (S.sel) {
+    const k = p.albumId + '/' + p.id, can = canSel(p), on = S.sel.has(k);
+    return `<button class="tile selm${on ? ' on' : ''}${can ? '' : ' no'}" data-act="selToggle" data-key="${k}" aria-pressed="${on}" aria-label="${can ? '選取這張' : '不能選取這張'}"${ph}>
+      <img data-media="${p.albumId}/${p.id}/thumb" alt="">${p.kind === 'video' ? `<span class="b vid">${ic('play', 11, 'play')}</span>` : ''}<span class="ck">${on ? ic('check', 16) : ''}</span></button>`;
+  }
+  return `<button class="tile" data-act="open" data-key="${p.albumId}/${p.id}" data-list="${list}" aria-label="查看照片"${ph}>
+    <img data-media="${p.albumId}/${p.id}/thumb" alt="">
+    ${isNew ? '<span class="b new">新</span>' : ''}${p.milestone ? `<span class="b ms">${ic('star', 12)}</span>` : ''}
+    ${p.kind === 'video' ? `<span class="b vid">${ic('play', 11, 'play')}${p.duration ? Math.floor(p.duration / 60) + ':' + pad(p.duration % 60) : ''}</span>` : ''}
+    ${p.state === 'hidden' ? '<span class="b hid">已隱藏</span>' : (likes ? `<span class="b lk">${ic('heart', 11, 'fill')}${likes}</span>` : '')}
+    ${extra}
+  </button>`;
+}
+// 幾個月前的今天
+function memories() {
+  const now = new Date(), day = now.getDate(), out = [];
+  normalPhotos().forEach(p => {
+    const t = new Date(p.takenAt), diff = (now.getFullYear() - t.getFullYear()) * 12 + now.getMonth() - t.getMonth();
+    if (diff >= 1 && t.getDate() === day) out.push({ p, diff });
+  });
+  return out.sort((a, b) => a.diff - b.diff).slice(0, 12);
+}
+function viewTimeline() {
+  const ps = visiblePhotos(), al = S.albumId && albumById(S.albumId);
+  const head = al ? `<div class="row" style="margin-bottom:.4rem"><span class="chip">${ic('folder', 15)}${esc(al.name)}<span class="vis">${visIc(al.visibility, 12)}${visShort(al.visibility)}</span></span><button class="chip" data-act="clearAlbum">${ic('close', 13)}看全部</button></div>` : '';
+  const bc = !S.albumId ? babyCard() : '';
+  if (!ps.length) return bc + head + `<div class="empty">${ic('image', 44)}<p>這裡還沒有照片</p>${uploadableAlbums().length ? '<p class="hint">按下方的加號，上傳第一張吧。</p>' : ''}</div>`;
+  const newCount = ps.filter(p => p.createdAt > S.prevSeen && p.uploader !== S.me.email).length;
+  const mem = !S.albumId ? memories() : [];
+  let html = bc + head + (newCount ? `<div class="note">${ic('bell', 17)}上次之後新增了 ${newCount} 項</div>` : '');
+  if (mem.length) html += `<section class="mem"><h2>${ic('clockBack', 19)}回憶</h2><div class="strip">${mem.map(({ p, diff }) => tile(p, 'memories', `<span class="lab">${diff} 個月前</span>`)).join('')}</div></section>`;
+  if (!S.sel && ps.some(canSel)) html += `<div class="tl-tools"><button class="chip" data-act="selStart">${ic('check', 14)}選取多張</button></div>`;
+  const groups = new Map();
+  ps.forEach(p => { const d = new Date(p.takenAt), k = d.getFullYear() * 100 + d.getMonth(); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(p); });
+  groups.forEach((list, k) => {
+    const y = Math.floor(k / 100), m = k % 100 + 1, ageTxt = ageHead(list[0].takenAt);
+    const selAll = S.sel ? `<button class="chip" data-act="selMonth" data-k="${k}">全選這個月</button>` : `<span class="cnt">${list.length} 項</span>`;
+    html += `<div class="month">${ageTxt ? `<div><div class="age">${esc(ageTxt)}</div><div class="date">${y} 年 ${m} 月</div></div>` : `<div class="age">${y} 年 ${m} 月</div>`}${selAll}</div><div class="grid">${list.map(p => tile(p, 'timeline')).join('')}</div>`;
+  });
+  return html;
+}
+function ageHead(ts) {
+  if (!S.cfg.birthday) return '';
+  const b = new Date(S.cfg.birthday + 'T00:00:00'), d = new Date(ts);
+  if (d < b) return '出生前';
+  let m = (d.getFullYear() - b.getFullYear()) * 12 + d.getMonth() - b.getMonth(); if (d.getDate() < b.getDate()) m--;
+  if (m < 1) return '新生兒';
+  const y = Math.floor(m / 12), mm = m % 12;
+  return y ? `${y} 歲${mm ? mm + ' 個月' : ''}` : `${m} 個月`;
+}
+function viewAlbums() {
+  // 最近有新照片的相簿排最上面；沒照片的用建立時間
+  const lastUp = a => S.photos.reduce((t, p) => p.albumId === a.id && p.state === 'normal' && (p.createdAt || 0) > t ? p.createdAt : t, a.createdAt || 0);
+  const items = S.albums.slice().sort((a, b) => lastUp(b) - lastUp(a)).map(a => {
+    const ps = S.photos.filter(p => p.albumId === a.id && p.state === 'normal').sort((x, y) => y.takenAt - x.takenAt);
+    const cover = ps.find(p => p.id === a.coverId) || ps[0];
+    const extra = (a.allowed || []).length ? `，另開放 ${a.allowed.length} 人` : '';
+    return `<div class="album"><button data-act="openAlbum" data-id="${a.id}" style="width:100%;text-align:left;display:block">
+      <div class="cv${cover && cover.h > cover.w * 1.1 ? ' por' : ''}"${cover?.ph ? ` style="--ph:url('${cover.ph}')"` : ''}>${cover ? `<img data-media="${cover.albumId}/${cover.id}/${cover.kind === 'video' ? 'thumb' : 'disp'}" alt="">` : ic('image', 34)}</div>
+      <div class="meta"><b>${esc(a.name)}</b><small><span>${ps.length} 項</span><span class="vis">${visIc(a.visibility, 12)}${visShort(a.visibility)}${extra}</span>${a.allowUpload ? '<span>可上傳</span>' : ''}</small></div></button>
+      ${isAdmin() ? `<button class="edit" data-act="editAlbum" data-id="${a.id}">${ic('edit', 13)}權限</button>` : ''}</div>`;
+  }).join('');
+  return `<div class="row" style="margin-bottom:.8rem"><b style="font-size:1.15rem">相簿</b><span class="sp"></span>${isAdmin() ? `<button class="btn sm" data-act="editAlbum">${ic('plus', 16)}新增相簿</button>` : ''}</div>
+    ${S.albums.length ? `<div class="albums">${items}</div>` : `<div class="empty">${ic('folder', 44)}<p>還沒有可以看的相簿</p></div>`}`;
+}
+function viewMilestones() {
+  const ps = S.photos.filter(p => p.state === 'normal' && p.milestone).sort((a, b) => a.takenAt - b.takenAt);
+  if (!ps.length) return `<div class="empty">${ic('star', 44)}<p>還沒有里程碑</p><p class="hint">上傳或編輯照片時選「里程碑」（第一次翻身、收涎、抓周），就會收集在這裡。</p></div>`;
+  return `<div class="ms-list">${ps.map(p => `<button class="it" data-act="open" data-key="${p.albumId}/${p.id}" data-list="milestones">
+    <div class="th"><img data-media="${p.albumId}/${p.id}/thumb" alt=""></div>
+    <div><b>${ic('star', 17, 'fill')}${esc(p.milestone)}</b><small>${fmtDate(p.takenAt)} · ${esc(babyAge(p.takenAt))}</small>${p.caption ? `<div class="hint">${esc(p.caption)}</div>` : ''}</div></button>`).join('')}</div>`;
+}
+function notifyCard() {
+  return `<div class="card"><h3>${ic('mail', 19)}通知</h3><label class="chk"><input type="checkbox" data-change="myNotify" ${S.me.notify !== false ? 'checked' : ''}> 有新照片時寄 Email 通知我</label>
+    <p class="hint" style="margin-bottom:0">寄到 ${esc(S.me.email)}。家人上傳照片時寄一封信，附上幾張縮圖，自己上傳的不會通知。${isAdmin() ? '' : ''}</p>
+    ${isAdmin() ? `<button class="btn ghost sm" data-act="testMail" style="margin-top:.6rem">${ic('mail', 16)}寄一封測試信給我</button>` : ''}</div>`;
+}
+function bigTextCard() {
+  return `<div class="card"><h3>${ic('type', 19)}顯示</h3><label class="chk"><input type="checkbox" data-change="bigText" ${document.documentElement.classList.contains('big') ? 'checked' : ''}> 長輩模式（字和照片變大）</label>
+    <p class="hint" style="margin-bottom:0">想像 App 一樣使用：iPhone 用 Safari 按「分享」再選「加入主畫面」；Android 用 Chrome 按右上角選單，選「加到主畫面」。</p></div>`;
+}
+function viewMe() {
+  return `<div class="card"><div class="mrow" style="padding-top:0">${avatar(S.me.email, S.me.name || '我')}
+    <div class="info"><b>${esc(S.me.name || S.me.email)}</b> <span class="role ${S.me.role}">${ROLES[S.me.role].short}</span><small>${esc(S.me.email)}</small></div></div>
+    <p class="hint" style="margin:.4rem 0 0">你可以：${ROLES[S.me.role].can}${S.me.canDownload ? '、下載照片' : ''}。</p></div>
+    <div id="shBox"></div>
+    ${notifyCard()}
+    ${bigTextCard()}
+    <button class="btn ghost" data-act="replayTour" style="width:100%;margin-bottom:.6rem">${ic('help', 17)}重看使用導覽</button>
+  <button class="btn ghost" data-act="signOut" style="width:100%">登出</button>`;
+}
+function viewAdmin() {
+  const mem = S.members.slice().sort((a, b) => (b.role === 'admin') - (a.role === 'admin') || (a.name || '').localeCompare(b.name || ''));
+  const totalBytes = S.photos.reduce((s, p) => s + (p.bytes || 0), 0);
+  const trash = S.photos.filter(p => p.state === 'trash'), hidden = S.photos.filter(p => p.state === 'hidden');
+  const v = S.adminView, back = `<button class="chip" data-act="adminView" data-v="">${ic('back', 14)}返回</button>`;
+  if (v === 'trash' || v === 'hidden') {
+    const list = v === 'trash' ? trash : hidden;
+    return `${back}<h3 style="display:flex;gap:.4rem;align-items:center">${ic(v === 'trash' ? 'trash' : 'eyeOff', 20)}${v === 'trash' ? '回收桶' : '隱藏的照片'}</h3>
+      <p class="hint">${v === 'trash' ? '移到回收桶的照片，30 天後會自動永久刪除。' : '隱藏的照片只有管理者看得到，其他家人看不到。'}</p>
+      ${list.length ? `<div class="mini-grid">${list.map(p => `<div class="m">${tile(p, v)}<div class="acts">
+        ${v === 'trash' ? `<small class="hint">剩 ${Math.max(0, 30 - Math.floor((Date.now() - (p.trashedAt || Date.now())) / 864e5))} 天</small>` : ''}
+        <button class="btn sm ghost" data-act="restore" data-key="${p.albumId}/${p.id}">還原</button>
+        ${v === 'trash' ? `<button class="btn sm danger" data-act="purge" data-key="${p.albumId}/${p.id}">永久刪除</button>` : ''}
+      </div></div>`).join('')}</div>` : '<div class="empty">這裡是空的</div>'}`;
+  }
+  if (v === 'dups') return `${back}<h3 style="display:flex;gap:.4rem;align-items:center">${ic('copy', 20)}找重複照片</h3><p class="hint">比對照片畫面，找出重複上傳或轉檔過的同一張。刪除的照片會先進回收桶，30 天內可以還原。</p>
+    <label class="f" for="dupScope">檢查範圍</label><select id="dupScope" data-change="dupScope"><option value="">全部相簿</option>${S.albums.map(a => `<option value="${a.id}" ${S.dupScope === a.id ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}</select>
+    <div id="dupBox" style="margin-top:1rem"></div>`;
+  if (v === 'log') return `${back}<h3 style="display:flex;gap:.4rem;align-items:center">${ic('log', 20)}動態紀錄</h3><div class="card" id="logBox"><div class="spin"></div></div>`;
+  return `
+  <div class="card"><div class="row"><h3 style="margin:0">${ic('users', 20)}家人成員（${mem.length}）</h3><span class="sp"></span><button class="btn sm" data-act="newInvite">${ic('plus', 16)}邀請家人</button></div>
+    <div id="invBox"></div>
+    ${mem.map(m => `<div class="mrow">${avatar(m.email, m.name || m.relation)}
+      <div class="info"><b>${esc(m.name || m.email)}</b>${m.relation && m.relation !== m.name ? ` <small style="display:inline">(${esc(m.relation)})</small>` : ''} <span class="role ${m.role}">${ROLES[m.role]?.short || m.role}</span>
+      <small>${esc(m.email)}</small><small>${m.canDownload ? '可下載' : '不可下載'} · ${ago(m.lastSeen)}${m.via === 'invite' ? ' · 用邀請連結加入' : ''}${m.notify === false ? ' · 已關通知' : ''}</small>${hook('memberTag', m)}</div>
+      ${m.owner ? '<small class="hint">爸媽</small>' : `<button class="btn sm ghost" data-act="editMember" data-email="${esc(m.email)}">編輯</button>`}</div>`).join('')}
+  </div>
+  <div id="shBox"></div>
+  <div class="card"><div class="row"><h3 style="margin:0">${ic('baby', 20)}寶寶資料</h3><span class="sp"></span><button class="btn sm" data-act="babyEdit">${ic('edit', 16)}編輯</button></div>
+    <div class="mrow" style="padding-bottom:0">${babyAvatar(56)}<div class="info"><b>${esc(babyName())}</b>${S.cfg.fullName ? ` <small style="display:inline">(${esc(S.cfg.fullName)})</small>` : ''}<small>${S.cfg.birthday ? `${esc(S.cfg.birthday)} 出生 · ${esc(babyAge(Date.now()))}` : '還沒設定生日'}</small></div></div>
+    <label class="chk" style="margin-top:.8rem"><input type="checkbox" data-change="presence" ${presenceOn() ? 'checked' : ''}> 讓家人看到彼此「最近上線」的時間</label></div>
+  <div class="card"><h3>${ic('shield', 20)}隱私與管理</h3>
+    <div class="row"><button class="btn ghost sm" data-act="adminView" data-v="hidden">${ic('eyeOff', 16)}隱藏的照片（${hidden.length}）</button>
+    <button class="btn ghost sm" data-act="adminView" data-v="trash">${ic('trash', 16)}回收桶（${trash.length}）</button>
+    <button class="btn ghost sm" data-act="adminView" data-v="log">${ic('log', 16)}動態紀錄</button>
+    <button class="btn ghost sm" data-act="adminView" data-v="dups">${ic('copy', 16)}找重複照片</button></div>
+    <p class="hint" style="margin-top:.8rem">已使用 ${fmtBytes(totalBytes)}（${S.photos.length} 個項目），存在你的 Google 雲端硬碟「寶寶家庭相簿」資料夾，不另外收費。</p>
+    <p class="hint" style="margin-bottom:0">上傳時會保留完整解析度，並自動移除照片裡的 GPS 位置，避免家裡地址外流。</p></div>
+  ${notifyCard()}
+  ${bigTextCard()}
+  <button class="btn ghost" data-act="replayTour" style="width:100%;margin-bottom:.6rem">${ic('help', 17)}重看使用導覽</button>
+  <button class="btn ghost" data-act="signOut" style="width:100%">登出（${esc(S.me.email)}）</button>`;
+}
+
+/* ---------- 寶寶資料：會長大的圖示、頭像、導覽 ---------- */
+const GENDERS = { girl: '女生', boy: '男生', '': '不指定' };
+const STAGES = ['新生兒', '嬰兒期', '幼兒期', '學齡前', '小學生'];
+const babyMonths = (ts = Date.now(), bday = S.cfg.birthday) => {
+  if (!bday) return -1;
+  const b = new Date(bday + 'T00:00:00'), d = new Date(ts);
+  let m = (d.getFullYear() - b.getFullYear()) * 12 + d.getMonth() - b.getMonth(); if (d.getDate() < b.getDate()) m--;
+  return Math.max(0, m);
+};
+const stageOf = m => m < 0 ? 1 : m < 3 ? 0 : m < 12 ? 1 : m < 36 ? 2 : m < 72 ? 3 : 4;
+function babyIcon(m, gender = '') {
+  const cl = gender === 'girl' ? '#F0A3B8' : gender === 'boy' ? '#8DBFE6' : '#9CCFB0';
+  const cd = gender === 'girl' ? '#E48AA3' : gender === 'boy' ? '#6FA9D6' : '#7DB895';
+  const skin = '#F8D5B8', hair = '#5A4535', ink = '#3B2F2A';
+  const face = (cx, cy, r) => `<circle cx="${cx - r * .32}" cy="${cy + r * .08}" r="${r * .09}" fill="${ink}"/><circle cx="${cx + r * .32}" cy="${cy + r * .08}" r="${r * .09}" fill="${ink}"/>
+    <circle cx="${cx - r * .55}" cy="${cy + r * .36}" r="${r * .15}" fill="#F4A3A3" opacity=".5"/><circle cx="${cx + r * .55}" cy="${cy + r * .36}" r="${r * .15}" fill="#F4A3A3" opacity=".5"/>
+    <path d="M${cx - r * .2} ${cy + r * .42} q${r * .2} ${r * .2} ${r * .4} 0" stroke="${ink}" stroke-width="${Math.max(1.4, r * .08)}" fill="none" stroke-linecap="round"/>`;
+  const cap = (cx, cy, r) => `<path d="M${cx - r} ${cy - r * .1} Q${cx - r * .95} ${cy - r * 1.05} ${cx} ${cy - r * 1.05} Q${cx + r * .95} ${cy - r * 1.05} ${cx + r} ${cy - r * .1} Q${cx + r * .45} ${cy - r * .62} ${cx} ${cy - r * .6} Q${cx - r * .45} ${cy - r * .62} ${cx - r} ${cy - r * .1}Z" fill="${hair}"/>`;
+  const bow = (cx, cy, r) => gender === 'girl' ? `<circle cx="${cx + r * .62}" cy="${cy - r * .85}" r="${r * .2}" fill="${cd}"/><circle cx="${cx + r * .98}" cy="${cy - r * .72}" r="${r * .2}" fill="${cd}"/><circle cx="${cx + r * .8}" cy="${cy - r * .8}" r="${r * .1}" fill="#fff"/>` : '';
+  const st = stageOf(m);
+  let g = '';
+  if (st === 0) g = `<path d="M26 98 Q26 64 50 64 Q74 64 74 98Z" fill="${cl}"/><path d="M32 78 Q50 70 68 78" stroke="#fff" stroke-width="2.2" fill="none" opacity=".6"/>
+    <circle cx="50" cy="52" r="17" fill="${skin}"/><path d="M42 51 q3 3 6 0M52 51 q3 3 6 0" stroke="${ink}" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+    <circle cx="40" cy="58" r="2.6" fill="#F4A3A3" opacity=".5"/><circle cx="60" cy="58" r="2.6" fill="#F4A3A3" opacity=".5"/><path d="M47 58 q3 2.5 6 0" stroke="${ink}" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+    <path d="M46 36 q4 -6 8 0" stroke="${hair}" stroke-width="2.4" fill="none" stroke-linecap="round"/>`;
+  else if (st === 1) g = `<ellipse cx="50" cy="82" rx="23" ry="17" fill="${cl}"/><circle cx="29" cy="80" r="6" fill="${skin}"/><circle cx="71" cy="80" r="6" fill="${skin}"/><circle cx="40" cy="94" r="6" fill="${skin}"/><circle cx="60" cy="94" r="6" fill="${skin}"/>
+    <circle cx="50" cy="46" r="22" fill="${skin}"/>${face(50, 46, 22)}<path d="M50 25 q-8 -9 2 -11 q8 1 3 9" stroke="${hair}" stroke-width="3" fill="none" stroke-linecap="round"/>${bow(50, 46, 22)}`;
+  else if (st === 2) g = `<rect x="39" y="82" width="8" height="13" rx="4" fill="${skin}"/><rect x="53" y="82" width="8" height="13" rx="4" fill="${skin}"/><rect x="36" y="60" width="28" height="28" rx="10" fill="${cl}"/>
+    <path d="M36 66 L27 80M64 66 L73 80" stroke="${skin}" stroke-width="6" stroke-linecap="round"/><circle cx="50" cy="40" r="20" fill="${skin}"/>${cap(50, 40, 20)}${face(50, 42, 20)}${bow(50, 40, 20)}`;
+  else if (st === 3) g = `<rect x="40" y="80" width="7" height="15" rx="3.5" fill="${skin}"/><rect x="53" y="80" width="7" height="15" rx="3.5" fill="${skin}"/><rect x="38" y="50" width="24" height="33" rx="9" fill="${cl}"/>
+    <path d="M38 56 L29 74M62 56 L71 74" stroke="${skin}" stroke-width="5.5" stroke-linecap="round"/><circle cx="50" cy="32" r="16" fill="${skin}"/>${cap(50, 32, 16)}${face(50, 34, 16)}${bow(50, 32, 16)}`;
+  else g = `<rect x="33" y="48" width="8" height="22" rx="4" fill="${cd}"/><rect x="41" y="76" width="7" height="19" rx="3.5" fill="${skin}"/><rect x="52" y="76" width="7" height="19" rx="3.5" fill="${skin}"/><rect x="39" y="42" width="22" height="38" rx="9" fill="${cl}"/>
+    <path d="M39 48 L31 68M61 48 L69 68" stroke="${skin}" stroke-width="5" stroke-linecap="round"/><path d="M45 44 L45 60M55 44 L55 60" stroke="#fff" stroke-width="2" opacity=".7"/><circle cx="50" cy="27" r="14" fill="${skin}"/>${cap(50, 27, 14)}${face(50, 29, 14)}${bow(50, 27, 14)}`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" aria-hidden="true">${g}</svg>`;
+}
+const avBg = () => S.cfg.gender === 'girl' ? '#FCE9EE' : S.cfg.gender === 'boy' ? '#E4F0F7' : '#E6F3EA';
+function babyAvatar(size = 44) {
+  const photo = S.cfg.avatar && S.cfg.avatarMode === 'photo';
+  return `<span class="bav" style="width:${size}px;height:${size}px;background:${avBg()}">${photo ? `<img src="${S.cfg.avatar}" alt="">` : babyIcon(babyMonths(), S.cfg.gender || '')}</span>`;
+}
+function nextAnniv() {
+  if (!S.cfg.birthday) return '';
+  const b = new Date(S.cfg.birthday + 'T00:00:00'), m = babyMonths() + 1, now = new Date(); now.setHours(0, 0, 0, 0);
+  let t = new Date(b.getFullYear(), b.getMonth() + m, 1); const last = new Date(t.getFullYear(), t.getMonth() + 1, 0).getDate();
+  t.setDate(Math.min(b.getDate(), last));
+  const days = Math.round((t - now) / 864e5);
+  const label = m % 12 === 0 ? `${m / 12} 歲生日` : m < 24 ? `滿 ${m} 個月` : `滿 ${Math.floor(m / 12)} 歲 ${m % 12} 個月`;
+  return days <= 0 ? `今天${label}` : `再 ${days} 天${label}`;
+}
+function babyCard() {
+  if (!S.cfg.birthday) return isAdmin() ? `<div class="bcard">${babyAvatar(56)}<div class="grow"><b>${esc(babyName())}</b><small>設定生日後，這裡會顯示月齡，圖示也會跟著長大。</small></div><button class="btn sm" data-act="babyEdit">設定</button></div>` : '';
+  const m = babyMonths();
+  return `<div class="bcard">${babyAvatar(60)}<div class="grow"><b>${esc(babyName())}${S.cfg.fullName ? `<span class="full">${esc(S.cfg.fullName)}</span>` : ''}</b>
+    <small>今天 ${esc(babyAge(Date.now()))} · ${STAGES[stageOf(m)]}</small><small class="nx">${ic('clock', 14)}${nextAnniv()}</small></div>
+    ${isAdmin() ? `<button class="ibtn" data-act="babyEdit" aria-label="編輯寶寶資料">${ic('edit', 19)}</button>` : ''}</div>`;
+}
+function syncBrand() {
+  document.title = `${babyName()}的相簿`;
+}
+
+/* 編輯寶寶資料（第一次設定時也用這個） */
+let avTmp = null;
+function openBabyEdit(first = false, after = null) {
+  avTmp = S.cfg.avatar || null; S._after = after;
+  const c = S.cfg, mode = c.avatarMode === 'photo' && c.avatar ? 'photo' : 'growth';
+  const m = openModal(`<h2>${first ? '先認識一下寶寶' : '寶寶資料'}</h2>
+    <p class="hint">${first ? '填好之後，相簿會顯示月齡，寶寶的圖示也會隨著年齡長大。之後都可以在「管理」修改。' : '修改後，所有家人看到的都會更新。'}</p>
+    <div class="av-prev"><div id="avPrev"></div></div>
+    <label class="f" style="margin-top:.4rem">暱稱</label><input id="bName" value="${esc(c.babyName || '')}" placeholder="例如：果果" maxlength="20">
+    <label class="f">全名（選填）</label><input id="bFull" value="${esc(c.fullName || '')}" placeholder="例如：黃小果" maxlength="30">
+    <label class="f">生日</label><input id="bBirth" type="date" value="${esc(c.birthday || '')}" max="${new Date().toISOString().slice(0, 10)}">
+    <label class="f">性別（選填，只用來決定圖示的顏色）</label>
+    <div class="seg" id="bGender">${Object.entries(GENDERS).map(([k, v]) => `<label><input type="radio" name="bg" value="${k}" ${(c.gender || '') === k ? 'checked' : ''}><span>${v}</span></label>`).join('')}</div>
+    <label class="f">頭像</label>
+    <div class="seg" id="avMode"><label><input type="radio" name="avm" value="growth" ${mode === 'growth' ? 'checked' : ''}><span>成長小圖示</span></label><label><input type="radio" name="avm" value="photo" ${mode === 'photo' ? 'checked' : ''}><span>用照片</span></label></div>
+    <div id="avPhotoBox" style="margin-top:.5rem;${mode === 'photo' ? '' : 'display:none'}"><input type="file" id="avFile" accept="image/*"><p class="hint">會自動裁成正方形並縮小，不含位置資訊。</p></div>
+    <div class="row" style="margin-top:1.1rem;justify-content:flex-end"><button class="btn ghost" data-act="babyCancel">${first ? '稍後再設定' : '取消'}</button><button class="btn" data-act="saveBaby" data-first="${first ? 1 : ''}">${first ? '儲存，繼續' : '儲存'}</button></div>`);
+  m.dataset.lock = '1'; refreshAvPrev();
+}
+function refreshAvPrev() {
+  const box = $('#avPrev'); if (!box) return;
+  const bd = $('#bBirth').value, g = document.querySelector('input[name=bg]:checked')?.value || '', mode = document.querySelector('input[name=avm]:checked')?.value;
+  const mo = bd ? babyMonths(Date.now(), bd) : 6, bg = g === 'girl' ? '#FCE9EE' : g === 'boy' ? '#E4F0F7' : '#E6F3EA';
+  box.innerHTML = `<span class="bav" style="width:96px;height:96px;background:${bg}">${mode === 'photo' && avTmp ? `<img src="${avTmp}" alt="">` : babyIcon(mo, g)}</span>
+    <small class="hint">${bd ? `${STAGES[stageOf(mo)]}的樣子` : '填生日後會依年齡變化'}</small>`;
+  $('#avPhotoBox').style.display = mode === 'photo' ? '' : 'none';
+}
+async function cropAvatar(file) {
+  let bmp = await createImageBitmap(file, { imageOrientation: 'from-image' }).catch(() => null);
+  if (!bmp) bmp = await loadImg(file).then(i => { i.width = i.naturalWidth; i.height = i.naturalHeight; return i; });
+  const s = Math.min(bmp.width, bmp.height), cv = document.createElement('canvas'); cv.width = cv.height = 192;
+  cv.getContext('2d').drawImage(bmp, (bmp.width - s) / 2, (bmp.height - s) / 2, s, s, 0, 0, 192, 192);
+  return cv.toDataURL('image/jpeg', 0.82);
+}
+
+/* 導覽 */
+function tourSlides() {
+  const n = babyName(), adm = isAdmin(), fam = S.me.role === 'family';
+  const s = [
+    { icon: 'baby', av: true, h: `歡迎來到${n}的相簿`, p: '這是只屬於家人的私人相簿。花半分鐘看看怎麼用。' },
+    { icon: 'calendar', h: '照片依月份整理', p: `每個月都會標示${n}幾個月大，往下滑就能看著${n}一路長大。` },
+    { icon: 'heart', h: '按讚、留言、分享', p: '點開照片就能按讚或留言，在照片上點兩下也可以按讚。想讓其他人看，可以直接傳到 LINE。' },
+    { icon: 'bell', h: '近況與回憶', p: '右上角的鈴鐺會告訴你家人上傳了什麼。時間軸最上面的「回憶」，會翻出 N 個月前的今天。' },
+    { icon: 'mail', h: '有新照片時寄信通知你', p: `家人上傳新照片時，會寄一封信到 ${S.me.email}。不想收到可以在下面關掉，之後隨時能在「我的」重新打開。`, notify: true },
+  ];
+  if (adm || fam) s.push({ icon: 'check', h: '一次刪除很多張', p: adm ? '長按任何一張照片，或按時間軸上方的「選取多張」，勾好後一起刪除或隱藏。「管理」裡的「找重複照片」會幫你挑出重複上傳的照片。刪掉的照片 30 天內都能從回收桶還原。' : '長按自己上傳的照片，或按時間軸上方的「選取多張」，勾好後一起刪除。刪掉的照片爸媽可以在 30 天內幫你還原。' });
+  s.push({ icon: 'shield', h: '隱私有保障', p: adm ? '每本相簿都能設定誰看得到。隱藏的照片只有你看得到，家人要先邀請才能登入。上傳時會自動移除照片裡的 GPS 位置。' : '只有被爸媽邀請的家人看得到，外人只會看到登入畫面。照片上傳時已移除 GPS 位置資訊。' });
+  if (adm) s.push({ icon: 'users', h: '邀請家人', p: '在「管理」按「邀請家人」，可以直接產生邀請連結傳到 LINE，不用先問對方的 Gmail。對方登入後會出現在家人名單，你可以隨時調整權限或移除。', btns: [['新增相簿', 'tourAlbum'], ['邀請家人', 'tourInvite']] });
+  else if (fam) s.push({ icon: 'plus', h: '你也可以上傳', p: '按畫面下方中間的加號，選照片或影片就能上傳。只能上傳到爸媽開放的相簿。' });
+  else s.push({ icon: 'home', h: '加到主畫面更方便', p: '用手機瀏覽器的選單選「加入主畫面」，以後點一下圖示就能看。' });
+  return s;
+}
+function startTour(i = 0) {
+  $('#tour')?.remove();
+  const sl = tourSlides(); S.tour = { i, n: sl.length };
+  const s = sl[i], last = i === sl.length - 1;
+  const d = document.createElement('div'); d.className = 'tour'; d.id = 'tour';
+  d.innerHTML = `<div class="stage"><div class="big-ic">${s.av ? babyAvatar(120) : ic(s.icon, 54)}</div><h2>${esc(s.h)}</h2><p>${esc(s.p)}</p>
+      ${s.notify ? `<label class="chk tour-chk"><input type="checkbox" data-change="myNotify" ${S.me.notify !== false ? 'checked' : ''}> 有新照片時寄 Email 通知我</label>` : ''}
+      ${s.btns ? `<div class="row" style="justify-content:center;margin-top:.8rem">${s.btns.map(([t, a]) => `<button class="btn ghost" data-act="${a}">${t}</button>`).join('')}</div>` : ''}</div>
+    <div class="foot"><button class="skip" data-act="tourEnd">${last ? '' : '略過'}</button><div class="dots">${sl.map((_, k) => `<i class="${k === i ? 'on' : ''}"></i>`).join('')}</div>
+      <button class="btn" data-act="${last ? 'tourEnd' : 'tourNext'}">${last ? '開始使用' : '下一步'}</button></div>`;
+  document.body.appendChild(d);
+}
+function endTour() { $('#tour')?.remove(); LS.set('tour2:' + S.me.email, 1); }
+function maybeOnboard() {
+  const needSetup = isAdmin() && !S.cfg.setupDone && !S.cfg.birthday && !S.cfg.babyName;
+  const tourDone = LS.get('tour2:' + S.me.email, false);
+  if (needSetup) return openBabyEdit(true, () => startTour());
+  if (!tourDone) startTour();
+}
+
+/* ---------- 縮圖延遲載入 ---------- */
+const io = new IntersectionObserver(es => es.forEach(async e => {
+  if (!e.isIntersecting) return;
+  const img = e.target; io.unobserve(img);
+  const [aid, pid, which] = img.dataset.media.split('/'); const p = findPhoto(aid, pid);
+  if (!p) return;
+  try { img.src = await S.be.getMediaURL(p, which); img.onload = () => { img.classList.add('ok'); backfillPh(p, img); }; }
+  catch { img.closest('.tile, .th, .cv')?.classList.add('err'); }
+}), { rootMargin: '400px' });
+// 舊照片沒有模糊預覽圖：管理者或上傳者看到時順手補上（一次最多 40 張）
+let phBudget = 40;
+function backfillPh(p, img) {
+  if (p.ph || p._local || phBudget <= 0 || !(isAdmin() || p.uploader === S.me?.email) || S.be.demo) return;
+  const ph = tinyPh(img, img.naturalWidth, img.naturalHeight); if (!ph) return;
+  phBudget--; p.ph = ph; S.be.updatePhoto(p, { ph }).catch(() => {});
+}
+function observeMedia(root = document) { root.querySelectorAll('img[data-media]').forEach(i => io.observe(i)); }
+
+/* ---------- 彈出視窗 ---------- */
+function openModal(html) { closeModal(); const m = document.createElement('div'); m.className = 'modal'; m.id = 'modal'; m.innerHTML = `<div class="sheet">${html}</div>`; m.addEventListener('click', e => { if (e.target === m && !m.dataset.lock) closeModal(); }); document.body.appendChild(m); observeMedia(m); return m; }
+function closeModal() { $('#modal')?.remove(); }
+function msSelect(cur = '') {
+  const custom = cur && !MILESTONES.includes(cur);
+  return `<select id="msSel"><option value="">（不是里程碑）</option>${MILESTONES.map(m => `<option ${m === cur ? 'selected' : ''}>${m}</option>`).join('')}<option value="__c" ${custom ? 'selected' : ''}>自己輸入…</option></select>
+    <input id="msCustom" placeholder="自訂里程碑，例如：第一次游泳" value="${custom ? esc(cur) : ''}" style="margin-top:.4rem;${custom ? '' : 'display:none'}">`;
+}
+const readMs = () => { const v = $('#msSel').value; return v === '__c' ? $('#msCustom').value.trim() : v; };
+
+/* ---------- 近況（誰最近上線、最近新增了什麼） ---------- */
+function feedItems() {
+  const g = new Map();
+  S.photos.filter(p => p.state === 'normal').sort((a, b) => b.createdAt - a.createdAt).slice(0, 200).forEach(p => {
+    const k = [p.uploader, p.albumId, new Date(p.createdAt).toDateString()].join('|');
+    if (!g.has(k)) g.set(k, { who: p.uploader, albumId: p.albumId, at: p.createdAt, items: [] });
+    g.get(k).items.push(p);
+  });
+  return [...g.values()].slice(0, 30);
+}
+const agoShort = t => { const m = (Date.now() - t) / 6e4; if (m < 1) return '剛剛'; if (m < 60) return Math.floor(m) + ' 分鐘前'; if (m < 1440) return Math.floor(m / 60) + ' 小時前'; if (m < 43200) return Math.floor(m / 1440) + ' 天前'; return fmtDate(t); };
+function openFeed() {
+  const others = S.members.filter(m => m.email !== S.me.email && m.lastSeen !== undefined && presenceOn()).sort((a, b) => (b.lastSeen || 0) - (a.lastSeen || 0));
+  const items = feedItems();
+  openModal(`<h2>近況</h2>
+    ${others.length ? `<p class="hint" style="margin:.2rem 0 0">家人最近上線</p><div class="feed-av">${others.map(m => `<div class="p">${avatar(m.email, m.name || m.relation)}<b>${esc(m.name || m.relation || m.email)}</b>${m.lastSeen ? agoShort(m.lastSeen) : '尚未上線'}</div>`).join('')}</div>` : ''}
+    <p class="hint" style="margin:.4rem 0 0">最近新增</p>
+    ${items.length ? items.map(it => `<div class="fi"><div class="t"><b>${esc(memberName(it.who))}</b> 新增了 ${it.items.length} 項到「${esc(albumById(it.albumId)?.name || '')}」<small>${agoShort(it.at)}</small></div>
+      <div class="th">${it.items.slice(0, 5).map(p => tile(p, 'all')).join('')}</div></div>`).join('') : '<div class="empty" style="padding:2rem 0">還沒有新增的照片</div>'}
+    <button class="btn ghost" data-act="closeModal" style="width:100%;margin-top:.8rem">關閉</button>`);
+}
+
+/* ---------- 上傳 ---------- */
+function openUpload() {
+  const als = uploadableAlbums();
+  const def = (S.albumId && als.find(a => a.id === S.albumId)) ? S.albumId : als[0]?.id;
+  openModal(`<h2>上傳照片與影片</h2>
+    <label class="f">放到哪個相簿</label>
+    <select id="upAlbum">${als.map(a => `<option value="${a.id}" ${a.id === def ? 'selected' : ''}>${esc(a.name)}（${a.visibility === 'parents' ? '只有爸媽看得到' : a.visibility === 'family' ? '核心家人看得到' : '所有家人看得到'}）</option>`).join('')}</select>
+    <label class="f">選擇檔案（可一次選很多張）</label>
+    <input id="upFiles" type="file" accept="image/*,video/*" multiple>
+    <label class="f">說明（選填，套用到這次全部）</label><input id="upCap" placeholder="例如：第一次去動物園">
+    <label class="f">里程碑（選填）</label>${msSelect()}
+    <p class="hint">照片保留完整解析度並自動移除 GPS 位置；影片上限 200MB，建議 2 分鐘內。</p>
+    <div class="row" style="margin-top:.6rem"><button class="btn" data-act="doUpload">${ic('upload', 18)}開始上傳</button><button class="btn ghost" data-act="closeModal">取消</button></div>
+    <div class="prog" id="upProg"></div>`);
+}
+/* 背景上傳：選完就關掉視窗，照片先用手機裡壓好的小圖顯示，原檔在背景慢慢傳 */
+const UQ = { items: [], running: 0, total: 0, done: 0, ok: 0, okBy: {}, failed: [] };
+function doUpload(btn) {
+  const files = [...$('#upFiles').files]; if (!files.length) return toast('請先選擇檔案');
+  const albumId = $('#upAlbum').value, caption = $('#upCap').value.trim(), milestone = readMs();
+  files.forEach(f => UQ.items.push({ f, albumId, caption, milestone }));
+  UQ.total += files.length;
+  closeModal(); toast(`已開始上傳 ${files.length} 個，可以繼續瀏覽`);
+  S.tab = 'timeline'; S.albumId = null; render(); scrollTo(0, 0);
+  pumpUpload();
+}
+function pumpUpload() { while (UQ.running < 2 && UQ.items.length) runUpload(UQ.items.shift()); drawUpPill(); }
+const softRender = () => { if (['timeline', 'albums', 'milestones'].includes(S.tab) && !S.adminView) render(); };
+async function runUpload(job) {
+  UQ.running++; drawUpPill();
+  let local = null;
+  try {
+    const f = job.f;
+    if (S.photos.some(p => p.albumId === job.albumId && p.srcName === f.name && p.srcSize === f.size && p.state !== 'trash')) { UQ.skip = (UQ.skip || 0) + 1; return; }
+    const item = await prepareFile(f);
+    const meta = { kind: item.kind, takenAt: item.takenAt, createdAt: Date.now(), uploader: S.me.email, caption: job.caption, milestone: job.milestone, w: item.w, h: item.h, srcName: f.name, srcSize: f.size, ph: item.ph || '' };
+    if (item.duration) meta.duration = item.duration;
+    if (item.kind === 'video' && !item.noFrame) meta.thumbOk = true;
+    if (item.sig) { meta.sig = item.sig.s; meta.sr = item.sig.r; }
+    const _url = {}; item.parts.forEach(([k, b]) => { if (k !== 'full') _url[k] = URL.createObjectURL(b); });
+    local = { id: 'up' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), albumId: job.albumId, ...meta, state: 'normal', likes: [], commentCount: 0, _local: true, _url, _prog: 0 };
+    S.photos.push(local); softRender();
+    const rec = await S.be.upload(job.albumId, item, meta, x => { local._prog = x; updUpTile(local); drawUpPill(); });
+    const i = S.photos.indexOf(local); if (i >= 0) S.photos[i] = rec; else S.photos.push(rec);
+    setTimeout(() => Object.values(_url).forEach(u => URL.revokeObjectURL(u)), 60000);
+    UQ.ok++; UQ.okBy[job.albumId] = (UQ.okBy[job.albumId] || 0) + 1; (UQ.newIds ||= []).push(rec.id);
+    if (item.sig) { dhGet()[rec.id] = item.sig; LS.set(DH_KEY, dhGet()); }
+    softRender();
+  } catch (e) {
+    console.error(e);
+    if (local) { S.photos = S.photos.filter(p => p !== local); softRender(); }
+    job.err = e.code === 'NO_UPLOAD' ? '沒有上傳權限' : (e.message || e.code || '未知錯誤');
+    UQ.failed.push(job);
+  } finally {
+    UQ.running--; UQ.done++;
+    if (!UQ.running && !UQ.items.length) finishUploads();
+    pumpUpload();
+  }
+}
+function finishUploads() {
+  Object.entries(UQ.okBy).forEach(([aid, n]) => logAct(`上傳了 ${n} 個檔案到「${albumById(aid)?.name || ''}」`));
+  const msg = `上傳完成 ${UQ.ok} 個` + (UQ.skip ? `，略過重複 ${UQ.skip} 個` : '') + (UQ.failed.length ? `，${UQ.failed.length} 個失敗` : '');
+  toast(msg, 3500);
+  const ids = UQ.newIds || []; UQ.newIds = [];
+  if (ids.length) S.be.notifyNew(ids).then(r => { if (r.sent) setTimeout(() => toast(`已寄 Email 通知 ${r.sent} 位家人`), 3800); })
+    .catch(e => { if (e.code === 'MAIL_NOT_AUTHORIZED' && isAdmin()) setTimeout(() => toast('Email 通知還沒授權：請到 Apps Script 執行一次 authorizeMail', 6000), 3800); });
+  Object.assign(UQ, { total: UQ.failed.length, done: 0, ok: 0, okBy: {}, skip: 0 });
+}
+function updUpTile(p) {
+  const bar = document.querySelector(`.tile[data-key="${p.albumId}/${p.id}"] .upbar i`);
+  if (bar) bar.style.width = Math.max(4, Math.round((p._prog || 0) * 100)) + '%';
+}
+function drawUpPill() {
+  let el = $('#upPill');
+  const busy = UQ.running || UQ.items.length;
+  keepAwake(!!busy);
+  if (!busy && !UQ.failed.length) { el?.remove(); return; }
+  if (!el) { el = document.createElement('div'); el.id = 'upPill'; el.className = 'uppill'; document.body.appendChild(el); }
+  if (busy) {
+    const cur = S.photos.filter(p => p._local), pr = cur.length ? cur.reduce((s, p) => s + (p._prog || 0), 0) / cur.length : 0;
+    el.innerHTML = `<span class="spin sm"></span><span>上傳中 ${Math.min(UQ.done + 1, UQ.total)}/${UQ.total}${cur.length ? ` · ${Math.round(pr * 100)}%` : ''}</span><small>螢幕會保持亮著，請先不要關掉 App</small>`;
+    el.removeAttribute('data-act');
+  } else {
+    el.innerHTML = `${ic('alert', 18)}<span>${UQ.failed.length} 個上傳失敗</span><button class="btn sm" data-act="upRetry">重試</button><button class="ibtn" data-act="upDismiss" aria-label="關閉">${ic('close', 18)}</button>`;
+  }
+}
+window.addEventListener('beforeunload', e => { if (UQ.running || UQ.items.length) { e.preventDefault(); e.returnValue = ''; } });
+// 上傳期間讓螢幕保持亮著（手機自動關螢幕會讓上傳中斷）
+let wakeLock = null, wlPending = false;
+async function keepAwake(on) {
+  try {
+    if (on && !wakeLock && !wlPending && 'wakeLock' in navigator && document.visibilityState === 'visible') {
+      wlPending = true;
+      try { wakeLock = await navigator.wakeLock.request('screen'); } finally { wlPending = false; }
+      if (!(UQ.running || UQ.items.length)) { const w = wakeLock; wakeLock = null; await w.release(); return; }
+      wakeLock.addEventListener('release', () => { wakeLock = null; });
+    } else if (!on && wakeLock) { const w = wakeLock; wakeLock = null; await w.release(); }
+  } catch { wakeLock = null; }
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && (UQ.running || UQ.items.length)) keepAwake(true); });
+
+
+/* ---------- 看大圖 ---------- */
+function lbList(name) {
+  if (name === 'milestones') return S.photos.filter(p => p.state === 'normal' && p.milestone).sort((a, b) => a.takenAt - b.takenAt);
+  if (name === 'trash' || name === 'hidden') return S.photos.filter(p => p.state === name);
+  if (name === 'all') return normalPhotos();
+  if (name === 'memories') return memories().map(x => x.p);
+  return visiblePhotos();
+}
+function openLB(key, listName) {
+  const list = lbList(listName).filter(p => !p._local); const i = list.findIndex(p => `${p.albumId}/${p.id}` === key);
+  if (i < 0) return;
+  S.lb = { list, i, listName }; drawLB();
+}
+// 管理者打開 App 時，背景把舊影片的縮圖補好（用雲端硬碟自己做的影片縮圖）
+async function autoFixVideoThumbs() {
+  if (S._vfix || !isAdmin() || !S.be.fixVideoThumbs || !S.photos.some(p => p.kind === 'video' && !p.thumbOk && !p._local)) return;
+  S._vfix = true;
+  for (let round = 0; round < 15; round++) {
+    let r; try { r = await S.be.fixVideoThumbs(); } catch (e) { console.warn('fixVideoThumbs', e); break; }
+    (r.photos || []).forEach(q => { const p = S.photos.find(x => x.id === q.id); if (p) Object.assign(p, { thumbOk: true, tv: q.tv, ph: '' }); });
+    if (r.fixed) { softRender(); toast(`已補上 ${r.fixed} 支影片的縮圖`); }
+    if (!r.left || !r.fixed) break;
+  }
+}
+// 舊影片當初沒抓到畫面：管理者或上傳者打開播放時，自動補一張真正的縮圖
+async function fixVideoThumb(p, url) {
+  if (p.thumbOk || p._fixing || !(isAdmin() || p.uploader === S.me.email)) return;
+  p._fixing = true;
+  try {
+    const f = await grabFrame(url);
+    const r = await S.be.setThumb(p, f.blob, f.ph);
+    Object.assign(p, { ph: r.ph || f.ph, thumbOk: true, tv: r.tv });
+    document.querySelectorAll(`img[data-media="${p.albumId}/${p.id}/thumb"]`).forEach(i => { i.src = URL.createObjectURL(f.blob); });
+  } catch (e) { console.warn('thumb fix', e); } finally { p._fixing = false; }
+}
+/* ---------- 多選分享／刪除 ---------- */
+const canDel = p => !p._local && p.state !== 'trash' && (isAdmin() || (p.uploader === S.me.email && p.state === 'normal'));
+const canSel = p => !p._local && p.state === 'normal';
+const selPs = () => [...S.sel].map(keyP).filter(Boolean);
+function selStart(firstKey) { S.sel = new Set(firstKey ? [firstKey] : []); render(); drawSelBar(); }
+function selEnd() { S.sel = null; $('#selBar')?.remove(); render(); }
+function drawSelBar() {
+  let el = $('#selBar');
+  if (!S.sel) { el?.remove(); return; }
+  if (!el) { el = document.createElement('div'); el.id = 'selBar'; el.className = 'selbar'; document.body.appendChild(el); }
+  const n = S.sel.size, nDel = selPs().filter(canDel).length;
+  el.innerHTML = `<button class="btn ghost sm" data-act="selCancel">取消</button><b>已選 ${n} 張</b><span class="sp"></span>
+    <button class="btn sm" data-act="selShare" ${n ? '' : 'disabled'}>${ic('share', 16)}分享</button>
+    ${uploadableAlbums().length > 1 ? `<button class="btn ghost sm" data-act="selMove" ${selPs().some(canMove) ? '' : 'disabled'}>${ic('folder', 16)}移動</button>` : ''}
+    ${isAdmin() ? `<button class="btn ghost sm" data-act="selDo" data-s="hidden" ${n ? '' : 'disabled'}>${ic('eyeOff', 16)}隱藏</button>` : ''}
+    <button class="btn danger sm" data-act="selDo" data-s="trash" ${nDel ? '' : 'disabled'}>${ic('trash', 16)}刪除</button>`;
+}
+/* ---------- 移到其他相簿 ---------- */
+const canMove = p => canDel(p) && p.state !== 'trash';
+function openMove(ps) {
+  ps = ps.filter(canMove);
+  if (!ps.length) return toast('只能移動自己上傳的照片');
+  const from = new Set(ps.map(p => p.albumId)), targets = uploadableAlbums().filter(a => !(from.size === 1 && from.has(a.id)));
+  if (!targets.length) return toast('沒有其他可以放的相簿');
+  S._move = ps;
+  openModal(`<h2>移到哪一本相簿？</h2><p class="hint">要移動 ${ps.length} 個檔案。移過去之後，誰看得到會照新相簿的設定。</p>
+    <div class="movelist">${targets.map(a => `<button class="btn ghost" data-act="doMove" data-to="${a.id}" style="width:100%;justify-content:flex-start;margin-bottom:.45rem">${ic('folder', 17)}${esc(a.name)}<span class="sp"></span><small class="hint">${visShort(a.visibility)}</small></button>`).join('')}</div>
+    <button class="btn ghost" data-act="closeModal" style="width:100%">取消</button>`);
+}
+async function doMove(to) {
+  const ps = S._move || [], a = albumById(to); if (!ps.length || !a) return;
+  const r = await S.be.movePhotos(ps.map(p => p.id), to), done = new Set(r.ids || []);
+  ps.forEach(p => { if (!done.has(p.id)) return; const old = albumById(p.albumId); if (old && old.coverId === p.id) old.coverId = ''; p.albumId = to; });
+  if (done.size) logAct(`把 ${done.size} 個檔案移到相簿「${a.name}」`);
+  return { n: done.size, name: a.name };
+}
+async function bulkApply(keys, state) {
+  const ps = keys.map(k => keyP(k)).filter(Boolean).filter(canDel);
+  if (!ps.length) return 0;
+  const r = await S.be.bulkState(ps.map(p => p.id), state), done = new Set(r.ids || []);
+  ps.forEach(p => { if (!done.has(p.id)) return; p.state = state; if (state === 'trash') p.trashedAt = Date.now(); });
+  if (!isAdmin() && state === 'trash') S.photos = S.photos.filter(p => !(done.has(p.id)));
+  const n = done.size, word = state === 'trash' ? '移到回收桶' : '設為隱藏';
+  if (n) logAct(`把 ${n} 個檔案${word}`);
+  return n;
+}
+// 長按照片直接進入多選
+let lpTimer = null, lpFired = false, lpUntil = 0;
+document.addEventListener('pointerdown', e => {
+  const t = e.target.closest('.tile[data-act="open"]'); if (!t || S.sel) return;
+  lpFired = false; clearTimeout(lpTimer);
+  lpTimer = setTimeout(() => { const p = keyP(t.dataset.key); if (p && canSel(p)) { lpFired = true; try { navigator.vibrate?.(15); } catch {} selStart(t.dataset.key); } }, 550);
+});
+['pointerup', 'pointercancel', 'pointermove'].forEach(ev => document.addEventListener(ev, e => { if (ev === 'pointermove' && Math.abs(e.movementX) + Math.abs(e.movementY) < 4) return; clearTimeout(lpTimer);
+  if (ev !== 'pointermove' && lpFired) { lpFired = false; lpUntil = Date.now() + 450; } }, true));
+document.addEventListener('click', e => { if ((lpFired || Date.now() < lpUntil) && e.target.closest('.tile')) { lpFired = false; lpUntil = 0; e.stopPropagation(); e.preventDefault(); } }, true);
+document.addEventListener('contextmenu', e => { if (e.target.closest('.tile')) e.preventDefault(); });
+
+/* ---------- 找重複照片 ---------- */
+// 每張照片算一個 12×12 的小色塊指紋；重新上傳、轉檔過的同一張照片指紋幾乎一樣，連拍的不同張則差很多
+const DH_KEY = 'dsig:v2';
+let dhCache = null, dhBytes = new Map();
+const dhGet = () => dhCache || (dhCache = LS.get(DH_KEY, {}));
+async function dhashOf(p) {
+  const c = dhGet(); if (c[p.id]) return c[p.id];
+  const url = await S.be.getMediaURL(p, 'thumb');
+  const img = new Image(); img.src = url; await img.decode();
+  const N = 12, cv = document.createElement('canvas'); cv.width = cv.height = N; const g = cv.getContext('2d', { willReadFrequently: true });
+  g.drawImage(img, 0, 0, N, N); const d = g.getImageData(0, 0, N, N).data, out = new Uint8Array(N * N * 3);
+  for (let i = 0; i < N * N; i++) { out[i * 3] = d[i * 4]; out[i * 3 + 1] = d[i * 4 + 1]; out[i * 3 + 2] = d[i * 4 + 2]; }
+  const v = { s: btoa(String.fromCharCode(...out)), r: +(img.naturalWidth / img.naturalHeight).toFixed(3) };
+  c[p.id] = v; return v;
+}
+const sigBytes = v => { if (!dhBytes.has(v.s)) dhBytes.set(v.s, Uint8Array.from(atob(v.s), ch => ch.charCodeAt(0))); return dhBytes.get(v.s); };
+function sigDist(a, b) {   // 平均每個顏色值差多少（0–255）；比例差太多直接算不同
+  if (!a || !b || Math.abs(a.r - b.r) / Math.max(a.r, b.r) > 0.03) return 999;
+  const x = sigBytes(a), y = sigBytes(b); let sum = 0;
+  for (let i = 0; i < x.length; i++) sum += Math.abs(x[i] - y[i]);
+  return sum / x.length;
+}
+const keepScore = p => (p.w || 0) * (p.h || 0) + ((p.likes || []).length + (p.commentCount || 0) + (p.caption ? 1 : 0) + (p.milestone ? 2 : 0)) * 1e9 - (p.createdAt || 0) / 1e13;
+async function findDups() {
+  const box = $('#dupBox'); if (!box) return;
+  const run = S.dupRun = (S.dupRun || 0) + 1;
+  const ps = S.photos.filter(p => !p._local && (p.state === 'normal' || p.state === 'hidden') && (!S.dupScope || p.albumId === S.dupScope));
+  // 先拿雲端已經存好的指紋，只有缺的才下載縮圖來算
+  if (!S._sigsLoaded) { try { Object.assign(dhGet(), await S.be.sigs()); S._sigsLoaded = true; } catch {} }
+  const had = new Set(Object.keys(dhGet()));
+  let done = 0; const fail = new Set();
+  const prog = () => { const b = $('#dupBox'); if (b && run === S.dupRun) b.innerHTML = `<div class="hint">正在比對縮圖 ${done}/${ps.length}…</div><div class="pbar"><i style="width:${ps.length ? done / ps.length * 100 : 100}%"></i></div>`; };
+  prog();
+  const queue = ps.slice(), worker = async () => { while (queue.length) { const p = queue.shift(); try { await dhashOf(p); } catch { fail.add(p.id); } done++; if (done % 6 === 0) prog(); } };
+  await Promise.all([1, 2, 3, 4, 5, 6].map(worker));
+  LS.set(DH_KEY, dhGet());
+  const fresh = ps.filter(p => !had.has(p.id) && dhGet()[p.id]).map(p => ({ id: p.id, ...dhGet()[p.id] }));
+  for (let i = 0; i < fresh.length; i += 300) S.be.saveSigs(fresh.slice(i, i + 300)).catch(() => {});
+  if (run !== S.dupRun) return;   // 中途換了檢查範圍
+  // 分組：同一個原始檔、或畫面幾乎一樣
+  const parent = ps.map((_, i) => i), find = i => parent[i] === i ? i : (parent[i] = find(parent[i])), join = (a, b) => { parent[find(a)] = find(b); };
+  const H = ps.map(p => dhGet()[p.id]);
+  const mean = H.map(v => { if (!v) return -99; const x = sigBytes(v); let t = 0; for (let i = 0; i < x.length; i++) t += x[i]; return t / x.length; });
+  const order = ps.map((_, i) => i).sort((i, j) => mean[i] - mean[j]);
+  // 同一個原始檔一定算重複
+  const bySrc = new Map(); ps.forEach((p, i) => { if (p.srcName && p.srcSize) { const k = p.kind + '|' + p.srcName + '|' + p.srcSize; if (bySrc.has(k)) join(i, bySrc.get(k)); else bySrc.set(k, i); } });
+  // 畫面比對：平均亮度差超過門檻的一定不像，所以排序後只比亮度相近的
+  for (let oi = 0; oi < order.length; oi++) {
+    const i = order[oi]; if (mean[i] < 0) continue;
+    for (let oj = oi + 1; oj < order.length; oj++) {
+      const j = order[oj]; if (mean[j] - mean[i] > 5) break;
+      const a = ps[i], b = ps[j];
+      if (a.kind !== b.kind) continue;
+      if (sigDist(H[i], H[j]) <= 5 && (a.kind !== 'video' || Math.abs((a.duration || 0) - (b.duration || 0)) <= 1)) join(i, j);
+    }
+  }
+  const groups = new Map(); ps.forEach((p, i) => { const r = find(i); if (!groups.has(r)) groups.set(r, []); groups.get(r).push(p); });
+  S.dups = [...groups.values()].filter(g => g.length > 1).map(g => g.sort((a, b) => keepScore(b) - keepScore(a)));
+  S.dupSel = new Set(); S.dups.forEach(g => g.slice(1).forEach(p => S.dupSel.add(p.albumId + '/' + p.id)));
+  drawDups(fail.size);
+}
+function drawDups(failed = 0) {
+  const box = $('#dupBox'); if (!box) return;
+  if (!S.dups.length) { box.innerHTML = `<div class="empty" style="padding:2rem 1rem">${ic('check', 40)}<p>沒有找到重複的照片</p>${failed ? `<p class="hint">有 ${failed} 張縮圖讀不到，沒有比對。</p>` : ''}</div>`; return; }
+  const n = S.dupSel.size;
+  box.innerHTML = `<div class="dup-sum"><span>找到 <b>${S.dups.length}</b> 組重複，已幫你勾好多出來的 <b>${n}</b> 張（每組保留畫質最好的一張）</span>
+      <button class="btn danger sm" data-act="dupDelete" ${n ? '' : 'disabled'}>${ic('trash', 16)}刪除勾選的 ${n} 張</button></div>
+    ${S.dups.map(g => `<div class="card dup-g"><div class="grid">${g.map((p, i) => { const k = p.albumId + '/' + p.id, on = S.dupSel.has(k);
+      return `<button class="tile selm${on ? ' on' : ''}" data-act="dupToggle" data-key="${k}" aria-pressed="${on}"${p.ph ? ` style="background-image:url('${p.ph}')"` : ''}><img data-media="${k}/thumb" alt=""><span class="ck">${on ? ic('check', 16) : ''}</span>${!on ? '<span class="b keep">保留</span>' : ''}</button>`; }).join('')}</div>
+      <div class="hint">${fmtDate(g[0].takenAt)} · ${esc(albumById(g[0].albumId)?.name || '')}${g[0].w ? ` · 最大 ${g[0].w}×${g[0].h}` : ''}</div></div>`).join('')}
+    ${failed ? `<p class="hint">有 ${failed} 張縮圖讀不到，沒有比對。</p>` : ''}`;
+  observeMedia(box);
+}
+// 先把前後兩張的大圖抓好，滑過去就不用等
+function prefetchNear() {
+  const L = S.lb; if (!L) return;
+  [L.i + 1, L.i - 1, L.i + 2].forEach(j => { const q = L.list[j]; if (q && q.kind !== 'video') S.be.getMediaURL(q, 'disp').catch(() => {}); });
+}
+async function drawLB() {
+  const { list, i } = S.lb, p = list[i];
+  if (!p) return closeLB();
+  const al = albumById(p.albumId), me = S.me, liked = (p.likes || []).includes(me.email);
+  const mine = p.uploader === me.email, canEdit = isAdmin() || mine, n = (p.likes || []).length;
+  let el = $('#lb'); if (!el) { el = document.createElement('div'); el.id = 'lb'; el.className = 'lb'; document.body.appendChild(el); document.body.style.overflow = 'hidden'; }
+  el.classList.toggle('nocopy', !me.canDownload);
+  el.innerHTML = `
+    <div class="lb-top"><button class="ibtn" data-act="lbClose" aria-label="關閉">${ic('close', 22)}</button>
+      <span class="d">${fmtDate(p.takenAt)}${babyAge(p.takenAt) ? ' · ' + esc(babyAge(p.takenAt)) : ''}</span><span class="sp"></span>
+      <button class="ibtn" data-act="shareOpen" title="分享" aria-label="分享">${ic('share', 22)}</button>
+      ${me.canDownload ? `<button class="ibtn" data-act="download" title="下載" aria-label="下載">${ic('download', 22)}</button>` : ''}
+    </div>
+    <div class="lb-stage" id="lbStage"${p.ph ? ` style="--ph:url('${p.ph}')"` : ''}>
+      ${p.kind === 'video' && !p._demoVideo ? '<video id="lbMedia" controls playsinline preload="metadata"></video>' : '<img id="lbMedia" alt="">'}
+      ${i > 0 ? `<button class="nav prev" data-act="lbGo" data-d="-1" aria-label="上一張">${ic('back', 22)}</button>` : ''}${i < list.length - 1 ? `<button class="nav next" data-act="lbGo" data-d="1" aria-label="下一張">${ic('next', 22)}</button>` : ''}
+    </div>
+    <div class="lb-info">
+      ${p.milestone ? `<div class="mschip">${ic('star', 15, 'fill')}${esc(p.milestone)}</div>` : ''}
+      ${p.caption ? `<p style="margin:.4rem 0;font-size:1.05rem">${esc(p.caption)}</p>` : ''}
+      <div class="hint" style="display:flex;align-items:center;gap:.35rem;flex-wrap:wrap">${ic('folder', 14)}${esc(al?.name || '')} · 由 ${esc(memberName(p.uploader))} 上傳${p.state === 'hidden' ? ' · 已隱藏' : ''}</div>
+      <div class="lb-acts">
+        <button class="btn ghost sm like ${liked ? 'on' : ''}" data-act="like" aria-pressed="${liked}">${ic('heart', 17)}${liked ? '已按讚' : '按讚'}${n ? ' ' + n : ''}</button>
+        <button class="btn ghost sm" data-act="shareOpen">${ic('share', 16)}分享</button>
+        ${canEdit && p.state !== 'trash' ? `<button class="btn ghost sm" data-act="editPhoto">${ic('edit', 16)}編輯</button>` : ''}
+        ${canMove(p) && uploadableAlbums().length > 1 ? `<button class="btn ghost sm" data-act="moveOne">${ic('folder', 16)}移到其他相簿</button>` : ''}
+        ${isAdmin() && p.state === 'normal' ? `<button class="btn ghost sm" data-act="setCover">${ic('cover', 16)}設為封面</button>` : ''}
+        ${isAdmin() && p.state !== 'trash' ? `<button class="btn ghost sm" data-act="toggleHide">${ic(p.state === 'hidden' ? 'eye' : 'eyeOff', 16)}${p.state === 'hidden' ? '取消隱藏' : '隱藏'}</button>` : ''}
+        ${canEdit && p.state !== 'trash' ? `<button class="btn ghost sm" data-act="trash">${ic('trash', 16)}刪除</button>` : ''}
+      </div>
+      ${n ? `<div class="hint" style="display:flex;gap:.35rem;align-items:center;flex-wrap:wrap"><span style="color:var(--like);display:inline-flex">${ic('heart', 14, 'fill')}</span>${p.likes.map(e => esc(memberName(e))).join('、')} 覺得讚</div>` : ''}
+      <div id="cmts" style="margin-top:.4rem"><div class="hint">留言載入中…</div></div>
+      <div class="row" style="margin-top:.6rem;flex-wrap:nowrap"><input id="cmtIn" placeholder="留言給${esc(babyName())}…" maxlength="500"><button class="btn sm" data-act="addCmt">送出</button></div>
+    </div>`;
+  const media = $('#lbMedia');
+  if (!me.canDownload) media.addEventListener('contextmenu', e => e.preventDefault());
+  try {
+    if (media.tagName === 'IMG') {
+      let gotDisp = false;
+      const dp = S.be.getMediaURL(p, 'disp').then(u => { gotDisp = true; if ($('#lbMedia') === media) media.src = u; prefetchNear(); });
+      S.be.getMediaURL(p, 'thumb').then(u => { if (!gotDisp && $('#lbMedia') === media) media.src = u; }).catch(() => {});
+      await dp;
+    }
+    else {
+      media.poster = await S.be.getMediaURL(p, 'thumb');
+      const pg = document.createElement('div'); pg.className = 'lb-prog'; pg.textContent = '影片載入中…'; $('#lbStage').appendChild(pg);
+      const u = await S.be.getMediaURL(p, 'full', f => pg.textContent = `影片載入中 ${Math.round(f * 100)}%`);
+      pg.remove(); if ($('#lbMedia') === media) media.src = u;
+      fixVideoThumb(p, u);
+    }
+  } catch { toast('檔案讀取失敗'); }
+  let sx = null; const stage = $('#lbStage');
+  stage.ontouchstart = e => sx = e.touches[0].clientX;
+  stage.ontouchend = e => { if (sx === null) return; const dx = e.changedTouches[0].clientX - sx; sx = null; if (Math.abs(dx) > 60) lbGo(dx < 0 ? 1 : -1); };
+  // 連點兩下照片 = 按讚
+  stage.onclick = e => { if (e.target.closest('.nav') || e.target.tagName === 'VIDEO') return; const t = Date.now(); if (t - S.lastTap < 320 && !(curP().likes || []).includes(S.me.email)) ACT.like(); S.lastTap = t; };
+  loadComments(p);
+}
+async function loadComments(p) {
+  const box = $('#cmts'); if (!box) return;
+  try {
+    const cs = await S.be.listComments(p); S.lb.comments = cs;
+    box.innerHTML = cs.length ? cs.map(c => `<div class="cmt"><b>${esc(c.name || memberName(c.author))}</b> ${esc(c.text)}<br><small>${fmtTime(c.at)}</small>
+      ${c.author === S.me.email || isAdmin() ? ` <button class="del" data-act="delCmt" data-id="${c.id}">刪除</button>` : ''}</div>`).join('') : '<div class="hint">還沒有留言，說點什麼吧</div>';
+  } catch { box.innerHTML = '<div class="hint">留言讀取失敗</div>'; }
+}
+function lbGo(d) { const n = S.lb.i + d; if (n < 0 || n >= S.lb.list.length) return; S.lb.i = n; drawLB(); }
+function closeLB() { $('#lb')?.remove(); document.body.style.overflow = ''; S.lb = null; render(); }
+const curP = () => S.lb.list[S.lb.i];
+async function setState(p, state, msg) {
+  const patch = { state }; if (state === 'trash') patch.trashedAt = Date.now();
+  await S.be.updatePhoto(p, patch); Object.assign(p, patch);
+  const sp = findPhoto(p.albumId, p.id); if (sp) Object.assign(sp, patch);
+  if (state === 'trash' && !isAdmin()) S.photos = S.photos.filter(x => x !== sp);
+  logAct(msg); toast(msg.replace(/^把/, '已把'));
+}
+async function downloadCur() {
+  const p = curP();
+  try {
+    toast('準備下載中…');
+    const url = await S.be.getMediaURL(p, 'full'); const blob = await (await fetch(url)).blob();
+    const ext = p.kind === 'video' ? ((p.mime || '').includes('quicktime') ? 'mov' : 'mp4') : 'jpg';
+    const name = `${babyName()}_${fmtDate(p.takenAt).replace(/\//g, '')}_${p.id.slice(-4)}.${ext}`;
+    const file = new File([blob], name, { type: blob.type });
+    if (navigator.canShare?.({ files: [file] }) && /iPhone|iPad|Android/i.test(navigator.userAgent)) { await navigator.share({ files: [file] }); return; }
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  } catch (e) { if (e.name !== 'AbortError') toast('下載失敗'); }
+}
+
+/* ---------- 分享 ---------- */
+// 分享連結：收到的人用任何 Google 帳號登入就能看，但只看得到這次選的照片、不能下載，7 天後失效
+const shareLink = s => location.origin + location.pathname + '?s=' + s.id + '&openExternalBrowser=1';
+const whatOf = ps => { const v = ps.filter(p => p.kind === 'video').length, i = ps.length - v; return [i ? i + ' 張照片' : '', v ? v + ' 支影片' : ''].filter(Boolean).join('、'); };
+const shareText = ps => `${babyName()}的${whatOf(ps)}${ps.length === 1 && ps[0].caption ? '：' + ps[0].caption : ''}`;
+const openShare = () => openShareFor([curP()]);
+async function openShareFor(ps) {
+  ps = ps.filter(p => p && !p._local && p.state === 'normal');
+  if (!ps.length) return toast('隱藏或在回收桶裡的照片不能分享');
+  if (ps.length > 100) return toast('一次最多分享 100 個，請少選一些');
+  const m = openModal(`<h2>分享 ${whatOf(ps)}</h2><div style="padding:1.5rem 0;text-align:center"><div class="spin"></div><p class="hint">正在產生分享連結…</p></div>`);
+  m.dataset.lock = '1';
+  try {
+    const s = await S.be.createShare(ps.map(p => p.id));
+    if ($('#modal') !== m) return;
+    S._shareCur = { link: shareLink(s), text: shareText(ps) };
+    const one = ps.length === 1 && S.lb && curP() === ps[0];
+    openModal(`<h2>分享 ${whatOf(ps)}</h2>
+      <p class="hint">收到連結的人用任何 Google 帳號登入就能看，<b>不需要被邀請</b>。他只看得到這 ${ps.length} 個檔案，看不到相簿裡其他照片和影片，也不能下載。連結 7 天後（${fmtDate(s.expiresAt)}）失效。</p>
+      <div class="sh-th">${ps.slice(0, 8).map(p => `<span class="tile"><img data-media="${p.albumId}/${p.id}/thumb" alt=""></span>`).join('')}${ps.length > 8 ? `<span class="more">+${ps.length - 8}</span>` : ''}</div>
+      <div class="share-list">
+        <a class="sh" href="https://line.me/R/msg/text/?${encodeURIComponent(S._shareCur.text + '\n' + S._shareCur.link)}" target="_blank" rel="noopener"><span class="mk line">LINE</span><span>傳到 LINE<small>傳送連結，點開登入就看得到</small></span></a>
+        ${one && S.me.canDownload && ps[0].kind !== 'video' ? `<button class="sh" data-act="shareFile"><span class="mk">${ic('image', 20)}</span><span>分享照片檔案<small>用手機的分享選單傳出照片本身</small></span></button>` : ''}
+        <button class="sh" data-act="copy" data-text="${esc(S._shareCur.link)}"><span class="mk">${ic('link', 20)}</span><span>複製連結</span></button>
+        ${navigator.share ? `<button class="sh" data-act="shareNative"><span class="mk">${ic('share', 20)}</span><span>其他應用程式</span></button>` : ''}
+      </div>
+      <p class="hint">想提早停止分享：到「${isAdmin() ? '管理' : '我的'}」的分享連結清單按「停用」。</p>
+      <button class="btn ghost" data-act="closeModal" style="width:100%;margin-top:.4rem">關閉</button>`);
+    if (S.sel) selEnd();
+  } catch (e) { if ($('#modal') === m) closeModal(); toast('產生分享連結失敗：' + (e.code || '')); }
+}
+async function fillShares() {
+  if (!$('#shBox')) return;
+  let xs = []; try { xs = await S.be.listShares(); } catch { return; }
+  const box = $('#shBox'); if (!box) return;
+  box.innerHTML = xs.length ? `<div class="card inv-list"><h3>${ic('share', 19)}分享中的連結</h3>${xs.map(s => {
+    const ps = s.ids.map(id => S.photos.find(p => p.id === id)).filter(Boolean);
+    return `<div class="inv"><span>${ic('link', 15)}${ps.length ? whatOf(ps) : s.ids.length + ' 個檔案'}${s.createdBy !== S.me.email ? ' · ' + esc(memberName(s.createdBy)) + '分享' : ''} · ${fmtDate(s.expiresAt)} 到期</span>
+      <span class="sp"></span><button class="btn ghost sm" data-act="copy" data-text="${esc(shareLink(s))}">複製</button><button class="btn ghost sm" data-act="revokeShare" data-id="${esc(s.id)}">停用</button></div>`; }).join('')}</div>` : '';
+}
+
+/* ---------- 打開別人傳來的分享連結（不需要是家人） ---------- */
+async function openShareView(code) {
+  S.share = { code, items: [] };
+  app.innerHTML = '<div class="center"><div class="spin"></div></div>';
+  try {
+    const d = await S.be.viewShare(code);
+    LS.set('pendingShare', '');
+    Object.assign(S.share, d); drawShareView();
+  } catch (e) {
+    S.share = null;
+    if (/TOKEN/.test(e.code || '')) return renderLogin('請重新登入');   // 分享碼先留著，登入後再打開
+    LS.set('pendingShare', '');
+    if (!/^SHARE_/.test(e.code || '')) return e.code === 'NETWORK' && navigator.onLine === false ? renderOffline() : renderDown();
+    S.share = { code, items: [], dead: true };
+    const why = { SHARE_EXPIRED: '這個分享連結已經過期了', SHARE_INVALID: '這個分享連結已經停用了' }[e.code] || '讀取失敗：' + (e.code || e.message);
+    app.innerHTML = `<div class="center"><div class="card login"><div class="logo">${ic('link', 36)}</div><h2>${esc(why)}</h2>
+      <p class="hint">分享連結 7 天後會自動失效，也可能被分享的人停用了。想再看，請對方重新分享一次。</p>
+      <button class="btn ghost" data-act="leaveShare">回到相簿</button></div></div>`;
+  }
+}
+function drawShareView() {
+  const s = S.share, n = s.items.length;
+  app.innerHTML = `<header class="top"><div><h1>${esc(s.baby)}的${n ? ' ' + whatOf(s.items) : '照片'}</h1>
+      <div class="age">${s.from ? esc(s.from) + ' 分享給你 · ' : ''}${fmtDate(s.expiresAt)} 前可以看</div></div><span class="sp"></span>
+      ${s.member ? `<button class="btn ghost sm" data-act="leaveShare">進入相簿</button>` : ''}</header>
+    <main class="nocopy">${n ? `<div class="grid">${s.items.map((p, i) => `<button class="tile" data-act="shOpen" data-i="${i}" aria-label="查看"${p.ph ? ` style="background-image:url('${p.ph}')"` : ''}>
+        <img data-share="${i}" alt="" draggable="false">${p.kind === 'video' ? `<span class="b vid">${ic('play', 11, 'play')}${p.duration ? Math.floor(p.duration / 60) + ':' + pad(p.duration % 60) : ''}</span>` : ''}</button>`).join('')}</div>`
+      : `<div class="empty">${ic('image', 44)}<p>這些照片已經被移除，或不再分享了</p></div>`}
+      <p class="hint" style="text-align:center;margin-top:1.4rem">這是分享給你看的照片和影片，只能在這裡觀看，不能下載。<br>${TEST_NOTE}</p></main>`;
+  app.querySelectorAll('img[data-share]').forEach(img => {
+    S.be.shareURL(s.code, s.items[+img.dataset.share], 'thumb').then(u => { img.onload = () => img.classList.add('ok'); img.src = u; })
+      .catch(() => img.closest('.tile')?.classList.add('err'));
+  });
+}
+async function drawShareLB() {
+  const s = S.share, i = s.lb, p = s.items[i], n = s.items.length;
+  let el = $('#lb'); if (!el) { el = document.createElement('div'); el.id = 'lb'; el.className = 'lb nocopy'; document.body.appendChild(el); document.body.style.overflow = 'hidden'; }
+  el.innerHTML = `
+    <div class="lb-top"><button class="ibtn" data-act="shClose" aria-label="關閉">${ic('close', 22)}</button>
+      <span class="d">${fmtDate(p.takenAt)}</span><span class="sp"></span><span class="d">${i + 1} / ${n}</span></div>
+    <div class="lb-stage" id="lbStage"${p.ph ? ` style="--ph:url('${p.ph}')"` : ''}>
+      ${p.kind === 'video' ? '<video id="lbMedia" controls playsinline preload="metadata" controlslist="nodownload noremoteplayback" disablepictureinpicture></video>' : '<img id="lbMedia" alt="" draggable="false">'}
+      ${i > 0 ? `<button class="nav prev" data-act="shGo" data-d="-1" aria-label="上一張">${ic('back', 22)}</button>` : ''}${i < n - 1 ? `<button class="nav next" data-act="shGo" data-d="1" aria-label="下一張">${ic('next', 22)}</button>` : ''}
+    </div>
+    ${p.caption || p.milestone ? `<div class="lb-info">${p.milestone ? `<div class="mschip">${ic('star', 15, 'fill')}${esc(p.milestone)}</div>` : ''}${p.caption ? `<p style="margin:.4rem 0;font-size:1.05rem">${esc(p.caption)}</p>` : ''}</div>` : ''}`;
+  const media = $('#lbMedia'), here = () => $('#lbMedia') === media;
+  media.addEventListener('contextmenu', e => e.preventDefault());
+  try {
+    if (media.tagName === 'IMG') {
+      let gotDisp = false;
+      S.be.shareURL(s.code, p, 'thumb').then(u => { if (!gotDisp && here()) media.src = u; }).catch(() => {});
+      const u = await S.be.shareURL(s.code, p, 'disp'); gotDisp = true; if (here()) media.src = u;
+    } else {
+      S.be.shareURL(s.code, p, 'thumb').then(u => { if (here()) media.poster = u; }).catch(() => {});
+      const pg = document.createElement('div'); pg.className = 'lb-prog'; pg.textContent = '影片載入中…'; $('#lbStage').appendChild(pg);
+      const u = await S.be.shareURL(s.code, p, 'full', f => pg.textContent = `影片載入中 ${Math.round(f * 100)}%`);
+      pg.remove(); if (here()) media.src = u;
+    }
+  } catch { toast('檔案讀取失敗'); }
+  let sx = null; const stage = $('#lbStage');
+  stage.ontouchstart = e => sx = e.touches[0].clientX;
+  stage.ontouchend = e => { if (sx === null) return; const dx = e.changedTouches[0].clientX - sx; sx = null; if (Math.abs(dx) > 60) shGo(dx < 0 ? 1 : -1); };
+}
+function shGo(d) { const s = S.share, j = s.lb + d; if (j < 0 || j >= s.items.length) return; s.lb = j; drawShareLB(); }
+function shClose() { $('#lb')?.remove(); document.body.style.overflow = ''; S.share.lb = null; }
+async function shareFile() {
+  const p = curP();
+  try {
+    const url = await S.be.getMediaURL(p, 'disp'); const blob = await (await fetch(url)).blob();
+    const file = new File([blob], `${babyName()}_${fmtDate(p.takenAt).replace(/\//g, '')}.jpg`, { type: 'image/jpeg' });
+    if (navigator.canShare?.({ files: [file] })) { await navigator.share({ files: [file], text: shareText(p) }); closeModal(); }
+    else { const a = document.createElement('a'); a.href = url; a.download = file.name; a.click(); toast('這個瀏覽器不能直接分享檔案，已改為下載'); }
+  } catch (e) { if (e.name !== 'AbortError') toast('分享失敗'); }
+}
+
+/* ---------- 編輯：照片、相簿、家人 ---------- */
+function openEditPhoto() {
+  const p = curP();
+  openModal(`<h2>編輯照片資訊</h2><label class="f">說明</label><textarea id="epCap">${esc(p.caption || '')}</textarea>
+    <label class="f">里程碑</label>${msSelect(p.milestone || '')}
+    <div class="row" style="margin-top:.9rem"><button class="btn" data-act="saveEditPhoto">儲存</button><button class="btn ghost" data-act="closeModal">取消</button></div>`);
+}
+function openEditAlbum(id) {
+  const a = id ? albumById(id) : { name: '', visibility: 'everyone', allowed: [], allowUpload: true };
+  const others = S.members.filter(m => m.role !== 'admin');
+  const cnt = id ? S.photos.filter(p => p.albumId === id).length : 0;
+  openModal(`<h2>${id ? '相簿設定' : '新增相簿'}</h2>
+    <label class="f">相簿名稱</label><input id="alName" value="${esc(a.name)}" placeholder="例如：滿月、出遊、洗澡照">
+    <label class="f">誰可以看</label>
+    ${Object.entries(VIS).map(([k, v]) => `<label class="chk"><input type="radio" name="alVis" value="${k}" ${a.visibility === k ? 'checked' : ''}> <span style="display:inline-flex;align-items:center;gap:.4rem">${ic(v.icon, 16)}${v.label}</span></label>`).join('')}
+    <label class="f">另外開放給（不受上面限制）</label>
+    ${others.length ? others.map(m => `<label class="chk"><input type="checkbox" class="alAllow" value="${esc(m.email)}" ${(a.allowed || []).includes(m.email) ? 'checked' : ''}> ${esc(m.name || m.email)} <span class="role ${m.role}">${ROLES[m.role].short}</span></label>`).join('') : '<p class="hint">還沒有邀請其他家人</p>'}
+    <p class="hint">例：選「只有爸媽」再勾選外婆，就是只有爸媽和外婆看得到。</p>
+    <label class="chk" style="margin-top:.6rem"><input type="checkbox" id="alUp" ${a.allowUpload ? 'checked' : ''}> 允許「可上傳」的家人上傳到這本相簿</label>
+    <div class="row" style="margin-top:1rem"><button class="btn" data-act="saveAlbum" data-id="${id || ''}">儲存</button><button class="btn ghost" data-act="closeModal">取消</button><span class="sp"></span>
+    ${id ? `<button class="btn danger sm" data-act="delAlbum" data-id="${id}" ${cnt ? `disabled title="相簿裡還有 ${cnt} 個檔案"` : ''}>刪除相簿</button>` : ''}</div>
+    ${id && cnt ? `<p class="hint">相簿裡還有 ${cnt} 個檔案（含回收桶），清空後才能刪除。</p>` : ''}`);
+}
+function openEditMember(email) {
+  const m = email ? S.members.find(x => x.email === email) : { email: '', name: '', relation: '', role: 'viewer', canDownload: true };
+  openModal(`<h2>${email ? '編輯家人' : '邀請家人'}</h2>
+    <label class="f">對方的 Gmail（Google 帳號）</label><input id="mEmail" type="email" value="${esc(m.email)}" ${email ? 'disabled' : ''} placeholder="example@gmail.com">
+    <label class="f">稱呼</label><input id="mName" value="${esc(m.name || '')}" placeholder="例如：阿嬤、台中奶奶">
+    <label class="f">關係</label><select id="mRel"><option value="">—</option>${RELATIONS.map(r => `<option ${r === m.relation ? 'selected' : ''}>${r}</option>`).join('')}</select>
+    <label class="f">權限</label><select id="mRole">${Object.entries(ROLES).map(([k, v]) => `<option value="${k}" ${m.role === k ? 'selected' : ''}>${v.label}</option>`).join('')}</select>
+    <p class="hint" id="mRoleHint">${ROLES[m.role].can}</p>
+    <label class="chk"><input type="checkbox" id="mDl" ${m.canDownload ? 'checked' : ''}> 允許下載照片</label>
+    <label class="chk"><input type="checkbox" id="mNotify" ${m.notify !== false ? 'checked' : ''}> 有新照片時寄 Email 通知他</label>
+    <div class="row" style="margin-top:1rem"><button class="btn" data-act="saveMember" data-email="${esc(email || '')}">${email ? '儲存' : '加入並產生邀請訊息'}</button><button class="btn ghost" data-act="closeModal">取消</button><span class="sp"></span>
+    ${email ? `${hook('memberBtn', m)}<button class="btn danger sm" data-act="removeMember" data-email="${esc(email)}">移除</button>` : ''}</div>
+    ${email ? `<p class="hint">${hook('memberHint', m)}移除後，對方立刻看不到任何照片。</p>` : ''}`);
+}
+/* ---------- 邀請連結 ---------- */
+function openNewInvite() {
+  openModal(`<h2>邀請家人</h2>
+    <div class="seg" style="margin:.4rem 0 .2rem"><label><input type="radio" name="invMode" value="link" checked><span>產生邀請連結</span></label><label><input type="radio" name="invMode" value="email"><span>指定 Gmail</span></label></div>
+    <p class="hint">不用先知道對方的 Gmail。把連結傳給對方，他用自己的 Google 帳號登入就會加入，權限照你這裡的設定。加入後會出現在家人名單，你隨時可以移除。</p>
+    <label class="f">稱呼（選填）</label><input id="iName" placeholder="留空就用對方 Google 帳號的名字">
+    <label class="f">關係</label><select id="iRel"><option value="">—</option>${RELATIONS.map(r => `<option>${r}</option>`).join('')}</select>
+    <label class="f">權限</label><select id="iRole"><option value="viewer">${ROLES.viewer.label}</option><option value="family">${ROLES.family.label}</option></select>
+    <label class="chk"><input type="checkbox" id="iDl" checked> 允許下載照片</label>
+    <label class="f">這個連結可以給</label>
+    <div class="seg"><label><input type="radio" name="iMulti" value="0" checked><span>一個人用</span></label><label><input type="radio" name="iMulti" value="1"><span>很多人用（例如傳到家族群組）</span></label></div>
+    <label class="f">有效期限</label>
+    <div class="seg"><label><input type="radio" name="iDays" value="7" checked><span>7 天</span></label><label><input type="radio" name="iDays" value="30"><span>30 天</span></label><label><input type="radio" name="iDays" value="0"><span>不限</span></label></div>
+    <div class="row" style="margin-top:1rem"><button class="btn" data-act="makeInvite">${ic('link', 16)}產生邀請連結</button><button class="btn ghost" data-act="closeModal">取消</button></div>`);
+}
+const inviteUrl = inv => location.origin + location.pathname + '?invite=' + inv.id + '&openExternalBrowser=1';
+function inviteLinkText(inv) {
+  return `${inv.name ? inv.name + '您好！' : '您好！'}邀請您加入${babyName()}的家庭相簿。
+
+1. 打開這個連結：
+${inviteUrl(inv)}
+（如果在 LINE 裡打不開，請按右上角選單，選「用瀏覽器開啟」）
+
+2. 用您的 Google 帳號登入，就會自動加入。
+
+3. 登入後可以「加入主畫面」，以後點圖示就能看${babyName()}的照片了。`;
+}
+function showInviteLink(inv) {
+  const t = inviteLinkText(inv);
+  openModal(`<h2>邀請連結</h2><p class="hint">${inv.maxUses ? '這個連結只能給一個人用' : '這個連結可以給很多人用'}，${inv.expiresAt ? fmtDate(inv.expiresAt) + ' 前有效' : '沒有期限'}。把下面的訊息傳給對方：</p>
+    <textarea readonly style="min-height:12rem">${esc(t)}</textarea>
+    <div class="row" style="margin-top:.7rem"><button class="btn" data-act="copy" data-text="${esc(t)}">複製</button>
+    <a class="btn line" href="https://line.me/R/msg/text/?${encodeURIComponent(t)}" target="_blank" rel="noopener">用 LINE 傳送</a>
+    <button class="btn ghost" data-act="closeModal">完成</button></div>
+    <p class="hint">不想再讓人用這個連結加入：在「管理」的邀請連結清單按「停用」。</p>`);
+}
+async function fillInvites() {
+  const box = $('#invBox'); if (!box) return;
+  let xs = []; try { xs = await S.be.listInvites(); } catch { return; }
+  if (!$('#invBox')) return;
+  $('#invBox').innerHTML = xs.length ? `<div class="inv-list"><div class="hint" style="margin:.6rem 0 .3rem">還能使用的邀請連結</div>${xs.map(i => `<div class="inv">
+      <span>${ic('link', 15)}${esc(i.name || i.relation || '邀請連結')} · ${ROLES[i.role]?.short || ''} · ${i.maxUses ? '單人' : `多人（已加入 ${i.uses || 0} 人）`}${i.expiresAt ? ' · ' + fmtDate(i.expiresAt) + ' 到期' : ''}</span>
+      <span class="sp"></span><button class="btn ghost sm" data-act="shareInvite" data-id="${i.id}">傳送</button><button class="btn ghost sm" data-act="revokeInvite" data-id="${i.id}">停用</button></div>`).join('')}</div>` : '';
+  S._inv = xs;
+}
+function inviteText(m) {
+  const url = location.origin + location.pathname + '?openExternalBrowser=1';
+  return `${m.name || ''}您好！我們建立了${babyName()}的家庭相簿。\n\n1. 打開這個網址：\n${url}\n（如果在 LINE 裡打不開，請按右上角選單，選「用瀏覽器開啟」）\n\n2. 按「用 Google 帳號登入」，選擇：\n${m.email}\n\n3. 登入後可以「加入主畫面」，以後點圖示就能看${babyName()}的照片了。`;
+}
+function showInvite(m) {
+  const t = inviteText(m);
+  openModal(`<h2>邀請訊息</h2><p class="hint">已把 ${esc(m.name || m.email)} 加入。把下面的訊息傳給對方：</p>
+    <textarea readonly style="min-height:12rem">${esc(t)}</textarea>
+    <div class="row" style="margin-top:.7rem"><button class="btn" data-act="copy" data-text="${esc(t)}">複製</button>
+    <a class="btn line" href="https://line.me/R/msg/text/?${encodeURIComponent(t)}" target="_blank" rel="noopener">用 LINE 傳送</a>
+    <button class="btn ghost" data-act="closeModal">完成</button></div>`);
+}
+async function showLog() {
+  const box = $('#logBox'); if (!box) return;
+  try {
+    const xs = await S.be.listActivity();
+    box.innerHTML = xs.length ? xs.map(x => `<div class="log"><small>${fmtTime(x.at)}</small><b>${esc(x.actorName)}</b> ${esc(x.text)}</div>`).join('') : '<div class="hint">還沒有紀錄</div>';
+  } catch { box.innerHTML = '<div class="hint">讀取失敗</div>'; }
+}
+
+/* ---------- 事件 ---------- */
+const keyP = k => { const [a, p] = k.split('/'); return findPhoto(a, p); };
+const ACT = {
+  reload: () => location.reload(),
+  refresh: () => loadAll(true).then(() => toast('已更新')),
+  signOut: async () => { await S.be.signOut(); if (!S.be.demo) location.reload(); },
+  copy: async el => { try { await navigator.clipboard.writeText(el.dataset.text); toast('已複製'); } catch { toast('請長按文字手動複製'); } },
+  tab: el => { if (S.sel) { S.sel = null; $('#selBar')?.remove(); } S.tab = el.dataset.tab; S.adminView = null; if (S.tab !== 'timeline') S.albumId = null; render(); scrollTo(0, 0); },
+  openAlbum: el => { S.albumId = el.dataset.id; S.tab = 'timeline'; render(); scrollTo(0, 0); },
+  clearAlbum: () => { S.albumId = null; render(); },
+  feed: () => openFeed(),
+  upload: () => openUpload(),
+  doUpload: el => doUpload(el),
+  upInfo: () => toast('這張還在上傳，完成後就能打開'),
+  upRetry: () => { const f = UQ.failed; UQ.failed = []; UQ.items.push(...f); UQ.total = f.length; UQ.done = 0; pumpUpload(); },
+  upDismiss: () => { UQ.failed = []; UQ.total = 0; drawUpPill(); },
+  closeModal: () => closeModal(),
+  open: el => { closeModal(); openLB(el.dataset.key, el.dataset.list); },
+  testMail: async el => { el.disabled = true; try { const r = await S.be.testMail(); toast(`測試信已寄到 ${S.me.email}，今天還能寄約 ${r.quota} 封`, 4000); }
+    catch (e) { toast(e.code === 'MAIL_NOT_AUTHORIZED' ? '還沒授權寄信：請到 Apps Script 選 authorizeMail 按「執行」一次' : '寄送失敗：' + (e.code || ''), 6000); } finally { el.disabled = false; } },
+  newInvite: () => openNewInvite(),
+  makeInvite: async el => {
+    if (document.querySelector('input[name=invMode]:checked').value === 'email') return openEditMember();
+    const x = { name: $('#iName').value.trim(), relation: $('#iRel').value, role: $('#iRole').value, canDownload: $('#iDl').checked,
+      multi: document.querySelector('input[name=iMulti]:checked').value === '1', days: Number(document.querySelector('input[name=iDays]:checked').value) };
+    el.disabled = true;
+    try { const inv = await S.be.createInvite(x); logAct(`產生了一個邀請連結（${ROLES[inv.role].short}${x.multi ? '、多人可用' : ''}）`); showInviteLink(inv); fillInvites(); }
+    catch (e) { el.disabled = false; toast('產生失敗：' + (e.code || '')); } },
+  shareInvite: el => { const inv = (S._inv || []).find(i => i.id === el.dataset.id); if (inv) showInviteLink(inv); },
+  revokeInvite: async el => { if (!confirm('停用這個邀請連結？已經加入的家人不受影響。')) return;
+    try { await S.be.revokeInvite(el.dataset.id); toast('已停用'); fillInvites(); } catch { toast('停用失敗'); } },
+  selStart: () => selStart(),
+  selCancel: () => selEnd(),
+  selToggle: el => { const k = el.dataset.key, p = keyP(k); if (!p || !canSel(p)) return toast('這張不能選');
+    S.sel.has(k) ? S.sel.delete(k) : S.sel.add(k); const on = S.sel.has(k); el.classList.toggle('on', on); el.setAttribute('aria-pressed', on); el.querySelector('.ck').innerHTML = on ? ic('check', 16) : ''; drawSelBar(); },
+  selMonth: el => { const k = Number(el.dataset.k); visiblePhotos().filter(p => { const d = new Date(p.takenAt); return d.getFullYear() * 100 + d.getMonth() === k && canSel(p); })
+    .forEach(p => S.sel.add(p.albumId + '/' + p.id)); render(); drawSelBar(); },
+  selDo: async el => { const st = el.dataset.s, keys = [...S.sel].filter(k => { const p = keyP(k); return p && canDel(p); }); if (!keys.length) return;
+    const skip = S.sel.size - keys.length;
+    if (st === 'trash' && !confirm(`把 ${keys.length} 張移到回收桶？（30 天內可還原）${skip ? `\n另外 ${skip} 張不是你上傳的，不會刪除。` : ''}`)) return;
+    el.disabled = true; try { const n = await bulkApply(keys, st); toast(st === 'trash' ? `已把 ${n} 張移到回收桶` : `已隱藏 ${n} 張`); selEnd(); } catch (e) { el.disabled = false; toast('失敗：' + (e.code || '')); } },
+  dupToggle: el => { const k = el.dataset.key; S.dupSel.has(k) ? S.dupSel.delete(k) : S.dupSel.add(k);
+    const g = S.dups.find(g => g.some(p => p.albumId + '/' + p.id === k)); if (g && g.every(p => S.dupSel.has(p.albumId + '/' + p.id))) toast('這組全部都勾了，整組都會被刪除'); drawDups(); },
+  dupDelete: async el => { const keys = [...S.dupSel]; if (!keys.length || !confirm(`把 ${keys.length} 張重複照片移到回收桶？（30 天內可還原）`)) return;
+    el.disabled = true; try { const n = await bulkApply(keys, 'trash'); toast(`已把 ${n} 張重複照片移到回收桶`); findDups(); } catch (e) { el.disabled = false; toast('失敗：' + (e.code || '')); } },
+  lbClose: () => closeLB(),
+  lbGo: el => lbGo(+el.dataset.d),
+  download: () => downloadCur(),
+  shareOpen: () => openShare(),
+  shareFile: () => shareFile(),
+  shareNative: async () => { const c = S._shareCur; try { await navigator.share({ title: c.text, text: c.text, url: c.link }); closeModal(); } catch (e) { if (e.name !== 'AbortError') toast('分享失敗'); } },
+  selShare: () => openShareFor([...S.sel].map(keyP)),
+  selMove: () => openMove(selPs()),
+  moveOne: () => openMove([curP()]),
+  doMove: async el => {
+    el.disabled = true;
+    try { const r = await doMove(el.dataset.to); closeModal(); toast(r.n ? `已把 ${r.n} 個檔案移到「${r.name}」` : '沒有移動任何檔案');
+      if (S.sel) selEnd(); else if (S.lb) { drawLB(); render(); } else render(); }
+    catch (e) { el.disabled = false; toast('移動失敗：' + (e.code || '')); } },
+  revokeShare: async el => { if (!confirm('停用這個分享連結？收到連結的人就看不到了。')) return;
+    try { await S.be.revokeShare(el.dataset.id); toast('已停用'); fillShares(); } catch { toast('停用失敗'); } },
+  shOpen: el => { S.share.lb = +el.dataset.i; drawShareLB(); },
+  shGo: el => shGo(+el.dataset.d),
+  shClose: () => shClose(),
+  leaveShare: () => { $('#lb')?.remove(); document.body.style.overflow = ''; S.share = null; loadAll(); },
+  like: async () => { const p = curP(), on = !(p.likes || []).includes(S.me.email);
+    try { await S.be.toggleLike(p, S.me.email, on); p.likes = on ? [...(p.likes || []), S.me.email] : p.likes.filter(e => e !== S.me.email); const sp = findPhoto(p.albumId, p.id); if (sp && sp !== p) sp.likes = p.likes; drawLB(); } catch { toast('失敗了，再試一次'); } },
+  addCmt: async () => { const t = $('#cmtIn').value.trim(); if (!t) return; const p = curP();
+    try { await S.be.addComment(p, { author: S.me.email, name: S.me.name || '', text: t, at: Date.now() }); p.commentCount = (p.commentCount || 0) + 1; $('#cmtIn').value = ''; loadComments(p); } catch { toast('留言失敗'); } },
+  delCmt: async el => { const p = curP(), c = S.lb.comments.find(x => x.id === el.dataset.id); if (!c || !confirm('刪除這則留言？')) return;
+    try { await S.be.deleteComment(p, c); loadComments(p); } catch { toast('刪除失敗'); } },
+  editPhoto: () => openEditPhoto(),
+  saveEditPhoto: async () => { const p = curP(), patch = { caption: $('#epCap').value.trim(), milestone: readMs() };
+    try { await S.be.updatePhoto(p, patch); Object.assign(p, patch); closeModal(); drawLB(); toast('已儲存'); } catch { toast('儲存失敗'); } },
+  setCover: async () => { const p = curP(); try { await S.be.saveAlbum({ id: p.albumId, coverId: p.id }); albumById(p.albumId).coverId = p.id; toast('已設為相簿封面'); } catch { toast('失敗'); } },
+  toggleHide: async () => { const p = curP(), hide = p.state !== 'hidden';
+    try { await setState(p, hide ? 'hidden' : 'normal', hide ? '把 1 張照片設為隱藏' : '取消隱藏 1 張照片'); if (S.lb.listName === 'timeline' || S.lb.listName === 'milestones' || S.lb.listName === 'hidden' || S.lb.listName === 'all') { S.lb.list.splice(S.lb.i, 1); if (S.lb.i >= S.lb.list.length) S.lb.i--; } S.lb.list.length ? drawLB() : closeLB(); } catch { toast('失敗'); } },
+  trash: async () => { if (!confirm(isAdmin() ? '移到回收桶？（30 天內可還原）' : '刪除這個檔案？（爸媽可以在 30 天內幫你還原）')) return; const p = curP();
+    try { await setState(p, 'trash', `把 1 個檔案移到回收桶（${albumById(p.albumId)?.name}）`); S.lb.list.splice(S.lb.i, 1); if (S.lb.i >= S.lb.list.length) S.lb.i--; S.lb.list.length ? drawLB() : closeLB(); } catch { toast('刪除失敗'); } },
+  restore: async el => { const p = keyP(el.dataset.key); try { await setState(p, 'normal', '還原了 1 個檔案'); render(); } catch { toast('失敗'); } },
+  purge: async el => { const p = keyP(el.dataset.key); if (!confirm('永久刪除後無法復原，確定嗎？')) return;
+    try { await S.be.deleteForever(p); S.photos = S.photos.filter(x => x !== p); logAct('永久刪除了 1 個檔案'); render(); } catch { toast('刪除失敗'); } },
+  adminView: el => { S.adminView = el.dataset.v || null; render(); scrollTo(0, 0); if (S.adminView === 'log') showLog(); if (S.adminView === 'dups') findDups(); },
+  babyEdit: () => openBabyEdit(false),
+  babyCancel: () => { closeModal(); const f = S._after; S._after = null; f && f(); },
+  saveBaby: async el => {
+    const name = $('#bName').value.trim(); if (!name) return toast('請輸入暱稱');
+    const mode = document.querySelector('input[name=avm]:checked').value;
+    if (mode === 'photo' && !avTmp) return toast('請選一張頭像照片');
+    const c = { babyName: name, fullName: $('#bFull').value.trim(), birthday: $('#bBirth').value, gender: document.querySelector('input[name=bg]:checked').value,
+      avatarMode: mode, avatar: mode === 'photo' ? avTmp : (S.cfg.avatar || ''), setupDone: true };
+    try { await S.be.setConfig(c); Object.assign(S.cfg, c); logAct('更新了寶寶資料'); closeModal(); const f = S._after; S._after = null; render(); toast('已儲存'); f && f(); }
+    catch (e) { toast('儲存失敗：' + (e.code || '')); } },
+  tourNext: () => startTour(S.tour.i + 1),
+  tourEnd: () => endTour(),
+  replayTour: () => startTour(0),
+  tourAlbum: () => { endTour(); S.tab = 'albums'; render(); openEditAlbum(); },
+  tourInvite: () => { endTour(); S.tab = 'me'; S.adminView = null; render(); openNewInvite(); },
+  editAlbum: el => openEditAlbum(el.dataset.id),
+  saveAlbum: async el => {
+    const name = $('#alName').value.trim(); if (!name) return toast('請輸入相簿名稱');
+    const a = { name, visibility: document.querySelector('input[name=alVis]:checked').value, allowed: [...document.querySelectorAll('.alAllow:checked')].map(x => x.value), allowUpload: $('#alUp').checked };
+    if (el.dataset.id) a.id = el.dataset.id; else a.createdAt = Date.now();
+    try { const id = await S.be.saveAlbum(a); const ex = albumById(id); ex ? Object.assign(ex, a) : S.albums.push({ ...a, id }); logAct(`${el.dataset.id ? '修改' : '建立'}了相簿「${name}」（${VIS[a.visibility].label}${a.allowed.length ? ` + ${a.allowed.map(memberName).join('、')}` : ''}）`); closeModal(); render(); toast('已儲存'); }
+    catch (e) { toast('儲存失敗：' + (e.code || '')); } },
+  delAlbum: async el => { const a = albumById(el.dataset.id); if (!confirm(`刪除相簿「${a.name}」？`)) return;
+    try { await S.be.deleteAlbum(a.id); S.albums = S.albums.filter(x => x !== a); logAct(`刪除了相簿「${a.name}」`); closeModal(); render(); } catch { toast('刪除失敗'); } },
+  editMember: el => openEditMember(el.dataset.email),
+  saveMember: async el => {
+    const isNew = !el.dataset.email, email = (isNew ? $('#mEmail').value : el.dataset.email).trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return toast('請輸入正確的 Email');
+    if (isNew && S.members.some(m => m.email === email)) return toast('這個 Email 已經在名單裡');
+    const m = { email, name: $('#mName').value.trim() || $('#mRel').value || email.split('@')[0], relation: $('#mRel').value, role: $('#mRole').value, canDownload: $('#mDl').checked, notify: $('#mNotify').checked };
+    if (isNew) m.addedAt = Date.now();
+    try { await S.be.saveMember(m); const ex = S.members.find(x => x.email === email); ex ? Object.assign(ex, m) : S.members.push(m);
+      logAct(`${isNew ? '把' : '修改'}「${m.name}」${isNew ? '加入相簿' : '的權限'}（${ROLES[m.role].short}${m.canDownload ? '' : '、不可下載'}）`);
+      render(); isNew ? showInvite(m) : (closeModal(), toast('已儲存')); }
+    catch (e) { toast('儲存失敗：' + (e.code || '')); } },
+  removeMember: async el => { const m = S.members.find(x => x.email === el.dataset.email); if (!confirm(`確定移除「${m.name}」？對方會立刻看不到所有照片。`)) return;
+    try { await S.be.removeMember(m.email); S.members = S.members.filter(x => x !== m);
+      for (const a of S.albums.filter(a => (a.allowed || []).includes(m.email))) { a.allowed = a.allowed.filter(e => e !== m.email); await S.be.saveAlbum({ id: a.id, allowed: a.allowed }).catch(() => {}); }
+      logAct(`把「${m.name}」移出相簿`); closeModal(); render(); toast('已移除'); } catch { toast('移除失敗'); } },
+};
+document.addEventListener('click', e => { const el = e.target.closest('[data-act]'); if (!el) return; const f = ACT[el.dataset.act]; if (f) { e.preventDefault(); f(el, e); } });
+document.addEventListener('change', e => {
+  const el = e.target;
+  if (el.id === 'msSel') { $('#msCustom').style.display = el.value === '__c' ? '' : 'none'; return; }
+  if (el.id === 'mRole') { $('#mRoleHint').textContent = ROLES[el.value].can; return; }
+  if (el.name === 'invMode' && el.value === 'email') { openEditMember(); return; }
+  if (el.dataset.change === 'myNotify') { const v = el.checked; S.be.setMyNotify(v).then(() => { S.me.notify = v; toast(v ? '有新照片時會寄 Email 給你' : '已關掉 Email 通知'); }).catch(() => { el.checked = !v; toast('儲存失敗'); }); return; }
+  if (el.dataset.change === 'dupScope') { S.dupScope = el.value; findDups(); return; }
+  if (el.dataset.change === 'presence') { const v = el.checked; S.be.setConfig({ showPresence: v }).then(() => { S.cfg.showPresence = v; toast('已儲存'); }).catch(() => { el.checked = !v; toast('儲存失敗'); }); return; }
+  if (el.id === 'bBirth' || el.name === 'bg' || el.name === 'avm') { refreshAvPrev(); return; }
+  if (el.id === 'avFile') { const f = el.files[0]; if (f) cropAvatar(f).then(u => { avTmp = u; refreshAvPrev(); }).catch(() => toast('這張圖片讀不了，換一張試試')); return; }
+  if (el.dataset.change === 'bigText') { document.documentElement.classList.toggle('big', el.checked); LS.set('bigText', el.checked); return; }
+  if (el.dataset.change === 'demoUser') { S.be.setUser(el.value); S.tab = 'timeline'; S.albumId = null; S.adminView = null; loadAll(true).then(() => toast(`現在以「${memberName(el.value)}」的身分預覽`)); }
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.id === 'cmtIn') ACT.addCmt();
+  if (!S.lb) return;
+  if (e.key === 'ArrowLeft') lbGo(-1); if (e.key === 'ArrowRight') lbGo(1); if (e.key === 'Escape' && !$('#modal')) closeLB();
+});
+
+boot();
+</script>
+</body>
+</html>
